@@ -4,11 +4,14 @@ defined( 'ABSPATH' ) || exit;
 class FU_Shortcodes {
 
     public static function init(): void {
-        add_shortcode( 'fu_startdate',     [ __CLASS__, 'startdate' ] );
-        add_shortcode( 'fu_spotsleft',     [ __CLASS__, 'spotsleft' ] );
-        add_shortcode( 'fu_card',          [ __CLASS__, 'card' ] );
-        add_shortcode( 'fu_show_if_slot',  [ __CLASS__, 'show_if_slot' ] );
-        add_action( 'wp_enqueue_scripts',  [ __CLASS__, 'enqueue_frontend' ] );
+        add_shortcode( 'fu_startdate',    [ __CLASS__, 'startdate'   ] );
+        add_shortcode( 'fu_spotsleft',    [ __CLASS__, 'spotsleft'   ] );
+        add_shortcode( 'fu_card',         [ __CLASS__, 'card'        ] );
+        add_shortcode( 'fu_show_if_slot', [ __CLASS__, 'show_if_slot'] );
+        add_shortcode( 'fu_finaldate',    [ __CLASS__, 'finaldate'   ] );
+        add_shortcode( 'fu_show_phase',   [ __CLASS__, 'show_phase'  ] );
+        add_shortcode( 'fu_countdown',    [ __CLASS__, 'countdown'   ] );
+        add_action( 'wp_enqueue_scripts', [ __CLASS__, 'enqueue_frontend' ] );
     }
 
     // ----------------------------------------------------------------
@@ -96,10 +99,112 @@ class FU_Shortcodes {
         [ $renderer, $slots ] = self::resolve( $atts );
         if ( ! $renderer ) return '';
 
-        $slot_index = max( 1, (int) $atts['slot'] ) - 1;
-        if ( ! isset( $slots[ $slot_index ] ) ) return '';
+        $slot_index   = max( 1, (int) $atts['slot'] ) - 1;
+        $visible      = isset( $slots[ $slot_index ] );
+        $program_slug = $atts['program'] ?: ( FU_Programs::default()['slug'] ?? '' );
 
-        return do_shortcode( $content );
+        return sprintf(
+            '<div data-fu-show-if-slot="%d" data-fu-program="%s" style="%s">%s</div>',
+            max( 1, (int) $atts['slot'] ),
+            esc_attr( $program_slug ),
+            $visible ? '' : 'display:none',
+            do_shortcode( $content )
+        );
+    }
+
+    // ----------------------------------------------------------------
+    // [fu_finaldate program="slug" class="..."]
+    // Renders the last program date as "June 29th" — no weekday.
+    // ----------------------------------------------------------------
+    public static function finaldate( array $atts ): string {
+        $atts    = shortcode_atts( [ 'program' => '', 'class' => '' ], $atts );
+        $program = $atts['program']
+            ? FU_Programs::get( $atts['program'] )
+            : FU_Programs::default();
+        if ( ! $program || empty( $program['dates'] ) ) return '';
+
+        $renderer     = new FU_Renderer( [ 'timezone' => wp_timezone_string() ] );
+        $last         = $renderer->parse_iso_date( end( $program['dates'] ) );
+        $program_slug = $atts['program'] ?: ( $program['slug'] ?? '' );
+
+        $classes = array_filter( [
+            'fu-var',
+            'fu-finaldate',
+            sanitize_html_class( $atts['class'] ),
+        ] );
+
+        return sprintf(
+            '<span class="%s" data-fu-var="finaldate" data-fu-program="%s">%s</span>',
+            esc_attr( implode( ' ', $classes ) ),
+            esc_attr( $program_slug ),
+            esc_html( $renderer->format_date_short( $last ) )
+        );
+    }
+
+    // ----------------------------------------------------------------
+    // [fu_show_phase phase="high_demand|final_week" program="slug"]
+    //   content
+    // [/fu_show_phase]
+    // ----------------------------------------------------------------
+    public static function show_phase( array $atts, ?string $content = '' ): string {
+        $atts    = shortcode_atts( [ 'phase' => '', 'program' => '' ], $atts );
+        $program = $atts['program']
+            ? FU_Programs::get( $atts['program'] )
+            : FU_Programs::default();
+        if ( ! $program || empty( $program['dates'] ) ) return '';
+
+        $renderer      = new FU_Renderer( [ 'timezone' => wp_timezone_string() ] );
+        $current_phase = $renderer->compute_phase( $program['dates'] );
+        $visible       = ( $current_phase === $atts['phase'] );
+        $program_slug  = $atts['program'] ?: ( $program['slug'] ?? '' );
+
+        return sprintf(
+            '<div data-fu-phase="%s" data-fu-program="%s" style="%s">%s</div>',
+            esc_attr( $atts['phase'] ),
+            esc_attr( $program_slug ),
+            $visible ? '' : 'display:none',
+            do_shortcode( $content )
+        );
+    }
+
+    // ----------------------------------------------------------------
+    // [fu_countdown program="slug" class="..."]
+    // Live D/H/M/S countdown to midnight before the final date.
+    // ----------------------------------------------------------------
+    public static function countdown( array $atts ): string {
+        $atts    = shortcode_atts( [ 'program' => '', 'class' => '' ], $atts );
+        $program = $atts['program']
+            ? FU_Programs::get( $atts['program'] )
+            : FU_Programs::default();
+        if ( ! $program || empty( $program['dates'] ) ) return '';
+
+        $renderer     = new FU_Renderer( [ 'timezone' => wp_timezone_string() ] );
+        $target_ts    = $renderer->countdown_target_timestamp( $program['dates'] );
+        $program_slug = $atts['program'] ?: ( $program['slug'] ?? '' );
+        $remaining    = max( 0, $target_ts - time() );
+
+        $days    = (int) floor( $remaining / 86400 );
+        $hours   = (int) floor( ( $remaining % 86400 ) / 3600 );
+        $minutes = (int) floor( ( $remaining % 3600 ) / 60 );
+        $seconds = (int) ( $remaining % 60 );
+
+        $classes = array_filter( [ 'fu-countdown', sanitize_html_class( $atts['class'] ) ] );
+
+        return sprintf(
+            '<span class="%s" data-fu-countdown="%d" data-fu-program="%s">'
+                . '<span class="fu-cd-days">%02d</span><span class="fu-cd-label">d </span>'
+                . '<span class="fu-cd-hours">%02d</span><span class="fu-cd-label">h </span>'
+                . '<span class="fu-cd-minutes">%02d</span><span class="fu-cd-label">m </span>'
+                . '<span class="fu-cd-seconds">%02d</span><span class="fu-cd-label">s</span>'
+            . '</span>',
+            esc_attr( implode( ' ', $classes ) ),
+            $target_ts,
+            esc_attr( $program_slug ),
+            $days,
+            $hours,
+            $minutes,
+            $seconds
+        );
     }
 
     // ----------------------------------------------------------------
@@ -107,11 +212,12 @@ class FU_Shortcodes {
     // ----------------------------------------------------------------
 
     public static function enqueue_frontend(): void {
-        // Only load on pages that actually contain our shortcodes.
         global $post;
         if ( ! $post ) return;
         $has_sc = false;
-        foreach ( [ 'fu_startdate', 'fu_spotsleft', 'fu_card', 'fu_show_if_slot' ] as $sc ) {
+        $all_sc = [ 'fu_startdate', 'fu_spotsleft', 'fu_card', 'fu_show_if_slot',
+                    'fu_finaldate', 'fu_show_phase', 'fu_countdown' ];
+        foreach ( $all_sc as $sc ) {
             if ( has_shortcode( $post->post_content, $sc ) ) { $has_sc = true; break; }
         }
         if ( ! $has_sc ) return;
@@ -130,20 +236,17 @@ class FU_Shortcodes {
             true
         );
 
-        // Inline the program data so the JS midnight-refresh script can
-        // recompute without an AJAX round-trip.
         $programs_js = [];
         foreach ( FU_Programs::all() as $p ) {
             $programs_js[ $p['slug'] ] = [
-                'dates'             => array_values( $p['dates'] ),
-                'highPriceMessage'  => $p['high_price_label'] ?? 'Start next Monday',
-                'highPriceSpots'    => (int) ( $p['high_price_spots'] ?? 2 ),
+                'dates'            => array_values( $p['dates'] ),
+                'highPriceMessage' => $p['high_price_label'] ?? 'Start next Monday',
+                'highPriceSpots'   => (int) ( $p['high_price_spots'] ?? 2 ),
             ];
         }
 
-        // Site UTC offset in minutes (wp_timezone() returns a DateTimeZone).
-        $now        = new \DateTime( 'now', wp_timezone() );
-        $tz_offset  = (int) ( $now->getOffset() / 60 ); // seconds → minutes
+        $now       = new \DateTime( 'now', wp_timezone() );
+        $tz_offset = (int) ( $now->getOffset() / 60 );
 
         wp_add_inline_script(
             'fitness-urgency',
@@ -160,9 +263,6 @@ class FU_Shortcodes {
     // ----------------------------------------------------------------
 
     /**
-     * Resolve [renderer, slots] for given shortcode atts.
-     * Returns [null, []] when the program is not found or has no dates.
-     *
      * @return array{ FU_Renderer|null, array }
      */
     private static function resolve( array $atts ): array {

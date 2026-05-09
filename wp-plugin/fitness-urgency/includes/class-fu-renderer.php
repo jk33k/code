@@ -161,10 +161,64 @@ class FU_Renderer {
     }
 
     public function format_date( \DateTimeInterface $d ): string {
-        return $d->format( 'l, F j' ); // "Monday, June 8"
+        $day = (int) $d->format( 'j' );
+        return $d->format( 'l, F ' ) . $day . $this->ordinal_suffix( $day );
+    }
+
+    public function format_date_short( \DateTimeInterface $d ): string {
+        $day = (int) $d->format( 'j' );
+        return $d->format( 'F ' ) . $day . $this->ordinal_suffix( $day );
     }
 
     public function spots_label( int $n ): string {
         return $n === 1 ? '1 spot left' : "{$n} spots left";
+    }
+
+    // ----------------------------------------------------------------
+    // Phase helpers
+    // ----------------------------------------------------------------
+
+    /**
+     * Returns the current urgency phase for the given program dates:
+     *   'high_demand' — D1+2 ≤ today ≤ Dlast-9
+     *   'final_week'  — Dlast-8 ≤ today ≤ Dlast-2
+     *   null          — outside both windows
+     */
+    public function compute_phase( array $date_strings, ?\DateTimeInterface $today = null ): ?string {
+        if ( empty( $date_strings ) ) return null;
+
+        $today   = $this->start_of_day( $today ?? new \DateTime( 'now', $this->tz ) );
+        $first   = $this->parse_iso_date( $date_strings[0] );
+        $last    = $this->parse_iso_date( $date_strings[ count( $date_strings ) - 1 ] );
+        $t_first = $this->days_between( $today, $first );
+        $t_last  = $this->days_between( $today, $last );
+
+        if ( $t_first <= -2 && $t_last >= 9 ) return 'high_demand';
+        if ( $t_last >= 2 && $t_last <= 8   ) return 'final_week';
+        return null;
+    }
+
+    /**
+     * Unix timestamp (UTC) of midnight (site-local) on the day before the last date.
+     * The live [fu_countdown] ticks down to this moment.
+     */
+    public function countdown_target_timestamp( array $date_strings ): int {
+        $last   = $this->parse_iso_date( $date_strings[ count( $date_strings ) - 1 ] );
+        $target = $last->modify( '-1 day' );
+        return $target->getTimestamp();
+    }
+
+    // ----------------------------------------------------------------
+    // Internal
+    // ----------------------------------------------------------------
+
+    private function ordinal_suffix( int $n ): string {
+        if ( $n >= 11 && $n <= 13 ) return 'th';
+        switch ( $n % 10 ) {
+            case 1: return 'st';
+            case 2: return 'nd';
+            case 3: return 'rd';
+            default: return 'th';
+        }
     }
 }

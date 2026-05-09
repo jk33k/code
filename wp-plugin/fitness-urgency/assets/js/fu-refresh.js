@@ -1,13 +1,13 @@
 /**
- * Client-side midnight refresh for Fitness Urgency.
+ * Client-side refresh for Fitness Urgency.
  *
  * PHP renders the correct values on first load (no flash of empty content).
- * This script re-runs the same logic when the site's local date rolls over
- * at midnight, so visitors who keep the page open overnight see fresh numbers
- * without a full page reload.
+ * This script handles two things:
+ *   1. Midnight rollover — re-runs slot/phase logic when the site's local date
+ *      changes, so visitors who keep the page open overnight see fresh content.
+ *   2. Live countdown — ticks [fu_countdown] every second via setInterval.
  *
- * fuRefreshData is inlined by PHP (FU_Shortcodes::enqueue_frontend) and
- * contains:
+ * fuRefreshData is inlined by PHP (FU_Shortcodes::enqueue_frontend):
  *   { programs: { slug: { dates, highPriceMessage, highPriceSpots } },
  *     tzOffset: <site UTC offset in minutes, e.g. -300 for America/New_York> }
  */
@@ -16,6 +16,17 @@
 
   var data = (typeof fuRefreshData !== 'undefined') ? fuRefreshData : null;
   if (!data) return;
+
+  // ── Ordinal suffix ─────────────────────────────────────────────
+  function ordinal(n) {
+    if (n >= 11 && n <= 13) return 'th';
+    switch (n % 10) {
+      case 1: return 'st';
+      case 2: return 'nd';
+      case 3: return 'rd';
+      default: return 'th';
+    }
+  }
 
   // ── Spots table (mirrors PHP renderer) ────────────────────────
   function spotsForDaysUntil(t) {
@@ -39,11 +50,11 @@
     return new Date(+p[0], +p[1] - 1, +p[2]);
   }
 
-  /** Today's date in site timezone (using the UTC offset from PHP). */
+  /** Today's date object with Y/M/D values in site timezone. */
   function siteToday() {
-    var now      = new Date();
-    var utcMs    = now.getTime() + now.getTimezoneOffset() * 60000;
-    var siteNow  = new Date(utcMs + data.tzOffset * 60000);
+    var now     = new Date();
+    var utcMs   = now.getTime() + now.getTimezoneOffset() * 60000;
+    var siteNow = new Date(utcMs + data.tzOffset * 60000);
     return new Date(siteNow.getFullYear(), siteNow.getMonth(), siteNow.getDate());
   }
 
@@ -51,8 +62,16 @@
     return Math.round((to.getTime() - from.getTime()) / 86400000);
   }
 
+  /** "Monday, June 8th" */
   function formatDate(d) {
-    return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+    var day = d.getDate();
+    return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long' }) + ' ' + day + ordinal(day);
+  }
+
+  /** "June 8th" (no weekday) */
+  function formatDateShort(d) {
+    var day = d.getDate();
+    return d.toLocaleDateString('en-US', { month: 'long' }) + ' ' + day + ordinal(day);
   }
 
   // ── Slot computation (mirrors PHP renderer) ────────────────────
@@ -79,6 +98,52 @@
 
     if (slot1.spots.soldOut) return [slot1, { type: 'highPrice' }];
     return [slot1];
+  }
+
+  // ── Phase computation (mirrors PHP renderer) ───────────────────
+  // high_demand : D1+2 ≤ today ≤ Dlast-9
+  // final_week  : Dlast-8 ≤ today ≤ Dlast-2
+  function computePhase(dateStrings, today) {
+    if (!dateStrings || !dateStrings.length) return null;
+    var t0     = today || siteToday();
+    var first  = parseISODate(dateStrings[0]);
+    var last   = parseISODate(dateStrings[dateStrings.length - 1]);
+    var tFirst = daysBetween(t0, first);
+    var tLast  = daysBetween(t0, last);
+    if (tFirst <= -2 && tLast >= 9) return 'high_demand';
+    if (tLast >= 2 && tLast <= 8)   return 'final_week';
+    return null;
+  }
+
+  // ── Variable computation (mirrors PHP renderer) ────────────────
+  function computeVars(slots, programCfg) {
+    var vars = {};
+    for (var i = 0; i < 2; i++) {
+      var n    = i + 1;
+      var slot = slots[i];
+      if (!slot) {
+        vars['startdate' + n] = { visible: false };
+        vars['spotsleft' + n] = { visible: false };
+        continue;
+      }
+      if (slot.type === 'highPrice') {
+        vars['startdate' + n] = { visible: true, text: programCfg.highPriceMessage, highPrice: true };
+        vars['spotsleft' + n] = { visible: true, text: spotsLabel(programCfg.highPriceSpots), highPrice: true };
+      } else {
+        vars['startdate' + n] = { visible: true, text: formatDate(slot.date) };
+        vars['spotsleft' + n] = slot.spots.soldOut
+          ? { visible: true, text: 'SOLD OUT', soldOut: true }
+          : { visible: true, text: spotsLabel(slot.spots.count) };
+      }
+    }
+
+    // finaldate: the last program date as "Month Nth"
+    if (programCfg.dates && programCfg.dates.length) {
+      var lastDate = parseISODate(programCfg.dates[programCfg.dates.length - 1]);
+      vars['finaldate'] = { visible: true, text: formatDateShort(lastDate) };
+    }
+
+    return vars;
   }
 
   // ── DOM update ─────────────────────────────────────────────────
@@ -115,50 +180,24 @@
     if (v.highPrice) el.classList.add('fu-high-price');
   }
 
-  function computeVars(slots, programCfg) {
-    var vars = {};
-    for (var i = 0; i < 2; i++) {
-      var n    = i + 1;
-      var slot = slots[i];
-      if (!slot) {
-        vars['startdate' + n] = { visible: false };
-        vars['spotsleft' + n] = { visible: false };
-        continue;
-      }
-      if (slot.type === 'highPrice') {
-        vars['startdate' + n] = { visible: true, text: programCfg.highPriceMessage, highPrice: true };
-        vars['spotsleft' + n] = { visible: true, text: spotsLabel(programCfg.highPriceSpots), highPrice: true };
-      } else {
-        vars['startdate' + n] = { visible: true, text: formatDate(slot.date) };
-        vars['spotsleft' + n] = slot.spots.soldOut
-          ? { visible: true, text: 'SOLD OUT', soldOut: true }
-          : { visible: true, text: spotsLabel(slot.spots.count) };
-      }
-    }
-    return vars;
-  }
-
   function refresh() {
     var today = siteToday();
 
-    // Update fu-card blocks (rendered by [fu_card] shortcode).
+    // fu-card blocks ([fu_card]).
     document.querySelectorAll('.fu-urgency').forEach(function (wrapper) {
       var slug = wrapper.getAttribute('data-fu-program') || Object.keys(data.programs)[0];
       var cfg  = data.programs[slug];
       if (!cfg) return;
 
       var slots = computeSlots(cfg.dates, cfg, today);
-
-      // Show/hide and update each card.
       var cards = wrapper.querySelectorAll('.fu-card');
       slots.forEach(function (slot, i) {
         if (cards[i]) { cards[i].style.display = ''; applySlotToCard(cards[i], slot, cfg); }
       });
-      // Hide any extra cards.
       for (var i = slots.length; i < cards.length; i++) cards[i].style.display = 'none';
     });
 
-    // Update [data-fu-var] elements (rendered by [fu_startdate]/[fu_spotsleft]).
+    // Inline variable spans ([fu_startdate], [fu_spotsleft], [fu_finaldate]).
     document.querySelectorAll('[data-fu-var]').forEach(function (el) {
       var slug = el.getAttribute('data-fu-program') || Object.keys(data.programs)[0];
       var cfg  = data.programs[slug];
@@ -177,17 +216,57 @@
       var slots = computeSlots(cfg.dates, cfg, today);
       el.style.display = slots[slotIndex] ? '' : 'none';
     });
+
+    // [fu_show_phase] wrappers.
+    document.querySelectorAll('[data-fu-phase]').forEach(function (el) {
+      var slug  = el.getAttribute('data-fu-program') || Object.keys(data.programs)[0];
+      var cfg   = data.programs[slug];
+      if (!cfg) return;
+      var phase        = el.getAttribute('data-fu-phase');
+      var currentPhase = computePhase(cfg.dates, today);
+      el.style.display = (currentPhase === phase) ? '' : 'none';
+    });
+  }
+
+  // ── Live countdown ticker ──────────────────────────────────────
+  function tickCountdowns() {
+    var nowSec = Math.floor(Date.now() / 1000);
+    document.querySelectorAll('[data-fu-countdown]').forEach(function (el) {
+      var targetTs  = parseInt(el.getAttribute('data-fu-countdown'), 10);
+      var remaining = Math.max(0, targetTs - nowSec);
+
+      var days    = Math.floor(remaining / 86400);
+      var hours   = Math.floor((remaining % 86400) / 3600);
+      var minutes = Math.floor((remaining % 3600) / 60);
+      var seconds = remaining % 60;
+
+      function pad(n) { return String(n).padStart(2, '0'); }
+
+      var d = el.querySelector('.fu-cd-days');
+      var h = el.querySelector('.fu-cd-hours');
+      var m = el.querySelector('.fu-cd-minutes');
+      var s = el.querySelector('.fu-cd-seconds');
+      if (d) d.textContent = pad(days);
+      if (h) h.textContent = pad(hours);
+      if (m) m.textContent = pad(minutes);
+      if (s) s.textContent = pad(seconds);
+    });
+  }
+
+  function startCountdownTicker() {
+    if (!document.querySelector('[data-fu-countdown]')) return;
+    tickCountdowns();
+    setInterval(tickCountdowns, 1000);
   }
 
   // ── Schedule midnight rollover ─────────────────────────────────
   function scheduleMidnight() {
     var now  = new Date();
-    // Compute next site-local midnight in UTC.
-    var utcMs   = now.getTime() + now.getTimezoneOffset() * 60000;
-    var siteNow = new Date(utcMs + data.tzOffset * 60000);
+    var utcMs    = now.getTime() + now.getTimezoneOffset() * 60000;
+    var siteNow  = new Date(utcMs + data.tzOffset * 60000);
     var siteMidnight = new Date(
       siteNow.getFullYear(), siteNow.getMonth(), siteNow.getDate() + 1,
-      0, 0, 5 // 5s after midnight to clear any edge-case ties
+      0, 0, 5 // 5s buffer
     );
     var siteToUTC = siteMidnight.getTime() - data.tzOffset * 60000;
     var msUntil   = siteToUTC - now.getTime();
@@ -198,5 +277,6 @@
     }, msUntil);
   }
 
+  startCountdownTicker();
   scheduleMidnight();
 })();

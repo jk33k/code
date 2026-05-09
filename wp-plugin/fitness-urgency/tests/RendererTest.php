@@ -5,6 +5,7 @@ use PHPUnit\Framework\TestCase;
  * Ports the full JavaScript spec:
  *   - 32 slot-logic cases from test-fitness-urgency.js
  *   - 6 named-variable cases from test-fitness-urgency-vars.js
+ *   - Phase and countdown-target tests for the new phase/banner features
  */
 class RendererTest extends TestCase {
 
@@ -18,7 +19,7 @@ class RendererTest extends TestCase {
     }
 
     // ----------------------------------------------------------------
-    // Helper
+    // Helpers
     // ----------------------------------------------------------------
 
     private function today( string $iso ): \DateTimeImmutable {
@@ -30,7 +31,7 @@ class RendererTest extends TestCase {
     }
 
     private function date_str( array $slot ): string {
-        return $slot['date']->format( 'l, F j' );
+        return $this->r->format_date( $slot['date'] );
     }
 
     private function spots_str( array $slot ): string {
@@ -69,10 +70,10 @@ class RendererTest extends TestCase {
     public static function slotProvider(): array {
         $d = static fn( $date, $spots ) => [ 'type' => 'date', 'date' => $date, 'spots' => $spots ];
         $hp = [ 'type' => 'high_price' ];
-        $jun8  = 'Monday, June 8';
-        $jun15 = 'Monday, June 15';
-        $jun22 = 'Monday, June 22';
-        $jun29 = 'Monday, June 29';
+        $jun8  = 'Monday, June 8th';
+        $jun15 = 'Monday, June 15th';
+        $jun22 = 'Monday, June 22nd';
+        $jun29 = 'Monday, June 29th';
 
         return [
             // [today, slot_count, slot1, slot2?]
@@ -112,15 +113,15 @@ class RendererTest extends TestCase {
     }
 
     // ----------------------------------------------------------------
-    // 6 named-variable cases
+    // Named-variable cases
     // ----------------------------------------------------------------
 
     public function test_variables_normal_day(): void {
         $vars = $this->r->compute_variables( $this->slots( '2026-05-31' ) );
-        $this->assertSame( 'Monday, June 8',  $vars['startdate1']['text'] );
-        $this->assertSame( '6 spots left',    $vars['spotsleft1']['text'] );
-        $this->assertSame( 'Monday, June 15', $vars['startdate2']['text'] );
-        $this->assertSame( '9 spots left',    $vars['spotsleft2']['text'] );
+        $this->assertSame( 'Monday, June 8th',  $vars['startdate1']['text'] );
+        $this->assertSame( '6 spots left',      $vars['spotsleft1']['text'] );
+        $this->assertSame( 'Monday, June 15th', $vars['startdate2']['text'] );
+        $this->assertSame( '9 spots left',      $vars['spotsleft2']['text'] );
     }
 
     public function test_variables_slot1_sold_out(): void {
@@ -132,8 +133,8 @@ class RendererTest extends TestCase {
 
     public function test_variables_single_date_day(): void {
         $vars = $this->r->compute_variables( $this->slots( '2026-06-25' ) );
-        $this->assertSame( 'Monday, June 29', $vars['startdate1']['text'] );
-        $this->assertSame( '2 spots left',    $vars['spotsleft1']['text'] );
+        $this->assertSame( 'Monday, June 29th', $vars['startdate1']['text'] );
+        $this->assertSame( '2 spots left',      $vars['spotsleft1']['text'] );
         $this->assertFalse( $vars['startdate2']['visible'] );
         $this->assertFalse( $vars['spotsleft2']['visible'] );
     }
@@ -158,5 +159,82 @@ class RendererTest extends TestCase {
         $this->assertTrue( $vars['startdate1']['high_price'] ?? false );
         $this->assertFalse( $vars['startdate2']['visible'] );
         $this->assertFalse( $vars['spotsleft2']['visible'] );
+    }
+
+    // ----------------------------------------------------------------
+    // Ordinal formatting
+    // ----------------------------------------------------------------
+
+    public function test_format_date_ordinals(): void {
+        $cases = [
+            '2026-06-01' => 'Monday, June 1st',
+            '2026-06-02' => 'Tuesday, June 2nd',
+            '2026-06-03' => 'Wednesday, June 3rd',
+            '2026-06-04' => 'Thursday, June 4th',
+            '2026-06-11' => 'Thursday, June 11th',
+            '2026-06-12' => 'Friday, June 12th',
+            '2026-06-13' => 'Saturday, June 13th',
+            '2026-06-21' => 'Sunday, June 21st',
+            '2026-06-22' => 'Monday, June 22nd',
+            '2026-06-23' => 'Tuesday, June 23rd',
+        ];
+        foreach ( $cases as $iso => $expected ) {
+            $d = $this->r->parse_iso_date( $iso );
+            $this->assertSame( $expected, $this->r->format_date( $d ), "format_date for $iso" );
+        }
+    }
+
+    public function test_format_date_short(): void {
+        $d = $this->r->parse_iso_date( '2026-06-29' );
+        $this->assertSame( 'June 29th', $this->r->format_date_short( $d ) );
+
+        $d2 = $this->r->parse_iso_date( '2026-06-01' );
+        $this->assertSame( 'June 1st', $this->r->format_date_short( $d2 ) );
+    }
+
+    // ----------------------------------------------------------------
+    // Phase tests
+    // ----------------------------------------------------------------
+
+    /** @dataProvider phaseProvider */
+    public function test_phase( string $today, ?string $expected ): void {
+        $this->assertSame(
+            $expected,
+            $this->r->compute_phase( $this->dates, $this->today( $today ) ),
+            "Phase on $today"
+        );
+    }
+
+    public static function phaseProvider(): array {
+        return [
+            // Before high_demand window
+            [ '2026-06-07', null ],          // Mon D1-1: not yet
+            [ '2026-06-08', null ],          // Mon D1+0: in sold-out window
+            [ '2026-06-09', null ],          // Tue D1+1: still sold-out window
+            // high_demand window (D1+2 through Dlast-9)
+            [ '2026-06-10', 'high_demand' ], // Wed D1+2: first day
+            [ '2026-06-15', 'high_demand' ], // Mon: middle
+            [ '2026-06-20', 'high_demand' ], // Sat Dlast-9: last day
+            // final_week window (Dlast-8 through Dlast-2)
+            [ '2026-06-21', 'final_week' ],  // Sun Dlast-8: first day
+            [ '2026-06-25', 'final_week' ],  // Thu: middle
+            [ '2026-06-27', 'final_week' ],  // Sat Dlast-2: last day
+            // After final_week
+            [ '2026-06-28', null ],          // Sun Dlast-1: sold-out window
+            [ '2026-06-29', null ],          // Mon Dlast: sold-out
+            [ '2026-07-01', null ],          // Wed: post-cycle
+        ];
+    }
+
+    // ----------------------------------------------------------------
+    // Countdown target
+    // ----------------------------------------------------------------
+
+    public function test_countdown_target_timestamp(): void {
+        $ts = $this->r->countdown_target_timestamp( $this->dates );
+        // Dlast = 2026-06-29. Target = 2026-06-28 00:00 America/New_York (EDT = UTC-4)
+        // = 2026-06-28 04:00:00 UTC
+        $expected = ( new \DateTimeImmutable( '2026-06-28 00:00:00', new \DateTimeZone( 'America/New_York' ) ) )->getTimestamp();
+        $this->assertSame( $expected, $ts );
     }
 }
