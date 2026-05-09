@@ -1,6 +1,6 @@
 <?php defined( 'ABSPATH' ) || exit; ?>
 <div class="wrap fu-admin">
-  <h1>Fitness Urgency</h1>
+  <h1>DWC - Spots Left</h1>
 
   <?php if ( ! empty( $_GET['saved'] ) )   : ?><div class="notice notice-success is-dismissible"><p>Program saved.</p></div><?php endif; ?>
   <?php if ( ! empty( $_GET['deleted'] ) ) : ?><div class="notice notice-success is-dismissible"><p>Program deleted.</p></div><?php endif; ?>
@@ -137,12 +137,16 @@
       <table class="widefat">
         <thead><tr><th>Shortcode</th><th>Output</th></tr></thead>
         <tbody>
-          <tr><td><code>[fu_startdate slot="1"]</code></td><td>First start date text</td></tr>
+          <tr><td><code>[fu_card]</code></td><td>Full two-card urgency block</td></tr>
+          <tr><td><code>[fu_startdate slot="1"]</code></td><td>First start date (e.g. "Monday, June 8th")</td></tr>
           <tr><td><code>[fu_startdate slot="2"]</code></td><td>Second start date text</td></tr>
           <tr><td><code>[fu_spotsleft slot="1"]</code></td><td>First spots-left text (or SOLD OUT)</td></tr>
           <tr><td><code>[fu_spotsleft slot="2"]</code></td><td>Second spots-left text</td></tr>
-          <tr><td><code>[fu_card]</code></td><td>Full two-card urgency block</td></tr>
-          <tr><td><code>[fu_show_if_slot slot="2"]…[/fu_show_if_slot]</code></td><td>Content only shown when slot 2 has data</td></tr>
+          <tr><td><code>[fu_finaldate]</code></td><td>Last program date as "June 29th"</td></tr>
+          <tr><td><code>[fu_show_if_slot slot="2"]…[/fu_show_if_slot]</code></td><td>Shown only when slot 2 has data</td></tr>
+          <tr><td><code>[fu_show_phase phase="high_demand"]…[/fu_show_phase]</code></td><td>Shown during the high-demand window</td></tr>
+          <tr><td><code>[fu_show_phase phase="final_week"]…[/fu_show_phase]</code></td><td>Shown during the final-week window</td></tr>
+          <tr><td><code>[fu_countdown]</code></td><td>Live D/H/M/S countdown to final date</td></tr>
         </tbody>
       </table>
       <p class="description" style="margin-top:8px;">

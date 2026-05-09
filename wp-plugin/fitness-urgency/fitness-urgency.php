@@ -1,7 +1,7 @@
 <?php
 /**
- * Plugin Name:       Fitness Urgency
- * Description:       Automatic "spots left" countdown for fitness program landing pages. Shows the next 1–2 Monday start dates with a shrinking spot count, then switches to a high-price message after the final date passes. Supports multiple programs via shortcodes.
+ * Plugin Name:       DWC - Spots Left
+ * Description:       Automatic "spots left" countdown for DWC program landing pages. Shows the next 1–2 Monday start dates with a shrinking spot count, then switches to a high-price message after the final date passes. Supports multiple programs via shortcodes.
  * Version:           1.1.0
  * Requires at least: 5.5
  * Requires PHP:      7.4

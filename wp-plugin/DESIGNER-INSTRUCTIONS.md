@@ -1,6 +1,6 @@
-# Fitness Urgency Plugin — Designer Guide
+# DWC – Spots Left — Designer Guide
 
-Automatic "spots left" countdown for fitness program landing pages. The
+Automatic "spots left" countdown for DWC program landing pages. The
 plugin shows the next 1–2 Monday start dates with a spot count that
 shrinks as each date approaches. After the final date passes it switches
 to a "Start next Monday — 2 spots left" high-price message.
@@ -45,11 +45,11 @@ in card/inline contexts, `"June 29th"` from `[fu_finaldate]`.
 
 ## Step 1 — Install the plugin (once per WP site)
 
-1. Download **`fitness-urgency.zip`** from this repo.
+1. Download **`dwc-spots-left.zip`** from this repo.
 2. WP Admin → **Plugins → Add New → Upload Plugin**.
 3. Choose the ZIP file → **Install Now → Activate**.
 
-The plugin is now active. You will see **Fitness Urgency** under the
+The plugin is now active. You will see **DWC - Spots Left** under the
 Settings menu.
 
 ---
@@ -60,7 +60,7 @@ Each "program" is a named set of four Monday start dates.
 
 ### Add a program
 
-1. WP Admin → **Settings → Fitness Urgency**.
+1. WP Admin → **Settings → DWC - Spots Left**.
 2. Fill in the **Add Program** form on the right:
 
    | Field | What to enter |
@@ -398,10 +398,10 @@ If you prefer to build the card layout natively in Elementor:
 
 **Shortcode shows as raw text like `[fu_card]`.**
 The plugin is not active. Go to WP Admin → Plugins and confirm
-Fitness Urgency is active.
+DWC - Spots Left is active.
 
 **Shortcode outputs nothing (blank space).**
-The program has no dates saved. Go to Settings → Fitness Urgency,
+The program has no dates saved. Go to Settings → DWC - Spots Left,
 edit the program, and add the four Monday start dates.
 
 **Dates are showing but they look wrong.**

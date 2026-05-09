@@ -12,8 +12,8 @@ class FU_Admin {
 
     public static function add_menu(): void {
         add_options_page(
-            'Fitness Urgency',
-            'Fitness Urgency',
+            'DWC - Spots Left',
+            'DWC - Spots Left',
             'manage_options',
             'fitness-urgency',
             [ __CLASS__, 'render_page' ]
