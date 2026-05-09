@@ -19,14 +19,27 @@ then drop shortcodes wherever you want the urgency content to appear.
 [fu_startdate slot="2"]            ← second start date text
 [fu_spotsleft slot="1"]            ← first spots-left text
 [fu_spotsleft slot="2"]            ← second spots-left text
+[fu_finaldate]                     ← last program date, e.g. "June 29th"
 
 [fu_show_if_slot slot="2"]
   …content only shown when a second date exists…
 [/fu_show_if_slot]
+
+[fu_show_phase phase="high_demand"]
+  …content only shown during the high-demand window…
+[/fu_show_phase]
+
+[fu_show_phase phase="final_week"]
+  …content only shown during the final-week window…
+  [fu_countdown]                   ← live D/H/M/S countdown
+[/fu_show_phase]
 ```
 
 Add `program="your-slug"` to any shortcode to target a specific program.
 Omit it and the default program is used.
+
+**Date format.** Dates render with ordinal suffixes — `"Monday, June 8th"`
+in card/inline contexts, `"June 29th"` from `[fu_finaldate]`.
 
 ---
 
@@ -154,6 +167,94 @@ would remain visible even when the shortcodes inside produce nothing.
 
 ---
 
+### Approach C — Phase banners and live countdown
+
+Two extra shortcodes let you place messaging at the **top of the funnel**
+that automatically appears and disappears as the cycle progresses — no edits
+needed once the dates are saved.
+
+| Shortcode | Visible window |
+|---|---|
+| `[fu_show_phase phase="high_demand"]…[/fu_show_phase]` | Wed after the first Monday rolls over → Saturday before the final week starts |
+| `[fu_show_phase phase="final_week"]…[/fu_show_phase]` | Sunday 8 days before the final Monday → Saturday before the final Monday |
+| `[fu_countdown]` | Live D/H/M/S countdown to midnight before the final Monday |
+| `[fu_finaldate]` | Last program date, formatted as "June 29th" |
+
+**Worked example** — for program dates `Jun 8 / 15 / 22 / 29`:
+
+| Date | What's visible at the top |
+|---|---|
+| Wed Jun 10 → Sat Jun 20 | `high_demand` banner |
+| Sun Jun 21 → Sat Jun 27 | `final_week` banner with live countdown |
+| Sun Jun 28 onwards | (nothing extra above the cards) |
+
+**Drop-in template** for the top of the landing page (write once, never edit):
+
+```
+[fu_show_phase phase="high_demand"]
+  <h2 class="banner">New start date added due to high demand</h2>
+[/fu_show_phase]
+
+[fu_show_phase phase="final_week"]
+  <h2 class="banner">[fu_finaldate] is the final start before the price increases.</h2>
+  [fu_countdown]
+[/fu_show_phase]
+```
+
+**Why two wrappers instead of one?** Each phase has its own copy and visibility
+window. If neither phase is active (e.g., the day after the cycle ends, or
+before it starts), nothing shows above the cards.
+
+#### Styling the countdown
+
+`[fu_countdown]` renders this structure (whitespace added for clarity):
+
+```html
+<span class="fu-countdown" data-fu-countdown="1751083200" data-fu-program="…">
+  <span class="fu-cd-days">06</span><span class="fu-cd-label">d </span>
+  <span class="fu-cd-hours">23</span><span class="fu-cd-label">h </span>
+  <span class="fu-cd-minutes">59</span><span class="fu-cd-label">m </span>
+  <span class="fu-cd-seconds">59</span><span class="fu-cd-label">s</span>
+</span>
+```
+
+Every part is independently stylable — no plugin CSS is loaded for the
+countdown by default, so you start from a blank slate:
+
+```css
+.fu-countdown { font-family: monospace; font-size: 2rem; }
+.fu-cd-days,
+.fu-cd-hours,
+.fu-cd-minutes,
+.fu-cd-seconds {
+  background: #111; color: #fff;
+  padding: 4px 8px; border-radius: 4px; min-width: 2ch;
+  display: inline-block; text-align: center;
+}
+.fu-cd-label { color: #888; margin: 0 6px; }
+
+/* Hide the d/h/m/s labels and add your own with ::after if you prefer */
+.fu-cd-label { display: none; }
+.fu-cd-days::after    { content: " days "; }
+.fu-cd-hours::after   { content: " hrs ";  }
+.fu-cd-minutes::after { content: " min ";  }
+.fu-cd-seconds::after { content: " sec";   }
+```
+
+The numbers update every second via JavaScript. The PHP-rendered initial
+values are correct on first paint (no flash), so the countdown looks live
+even before JS loads.
+
+#### Targeting a specific program
+
+```
+[fu_show_phase phase="final_week" program="summer-strength"]…[/fu_show_phase]
+[fu_countdown program="summer-strength"]
+[fu_finaldate program="summer-strength"]
+```
+
+---
+
 ## How the numbers work
 
 For each start date, the spots-left count follows this fixed schedule
@@ -187,6 +288,20 @@ based on `T` — the number of days until that start date:
 - After the **final cycle's window fully passes** (Wed after the last
   Tuesday), slot 1 itself shows the high-price message and slot 2 stays
   hidden.
+
+### Phase transitions
+
+`[fu_show_phase]` toggles the top-of-page banner using two date-driven
+phases. Let `D1` = first start date and `Dlast` = last start date:
+
+| Phase | Visible from | Visible until |
+|---|---|---|
+| `high_demand` | `D1 + 2` (Wed after first Monday) | `Dlast − 9` (Sat before final week) |
+| `final_week`  | `Dlast − 8` (Sun before final week) | `Dlast − 2` (Sat before final Monday) |
+
+Outside both windows nothing renders. The live `[fu_countdown]` ticks down
+to **midnight site-local on `Dlast − 1`** — i.e., it hits zero exactly when
+the `final_week` banner disappears.
 
 ### Midnight rollover
 
@@ -296,8 +411,19 @@ Check that WP's timezone is set correctly: WP Admin → Settings → General
 **The card renders but the spots count didn't update after midnight.**
 Reload the page. If it still shows yesterday's numbers, check the browser
 console for JS errors. The script needs to load — confirm the page
-contains a `[fu_card]`, `[fu_startdate]`, `[fu_spotsleft]`, or
-`[fu_show_if_slot]` shortcode so the plugin knows to enqueue the script.
+contains a `[fu_card]`, `[fu_startdate]`, `[fu_spotsleft]`,
+`[fu_show_if_slot]`, `[fu_show_phase]`, `[fu_countdown]`, or
+`[fu_finaldate]` shortcode so the plugin knows to enqueue the script.
+
+**The countdown shows the same numbers and isn't ticking.**
+Check the browser console for JS errors. The countdown updates every second
+via JavaScript; if the script failed to load, the PHP-rendered initial values
+will appear frozen.
+
+**The phase banner is showing on the wrong day.**
+Almost always a caching issue — the page was rendered yesterday (when the
+phase was active) and is being served from cache. Either exclude the page
+from caching or set a cache lifetime ≤ 24 h.
 
 **Slot 2 card is visible on a day when it should be hidden.**
 This can happen if the page is cached (e.g. by a caching plugin like
@@ -320,16 +446,21 @@ shortcode can point to a different program independently.
 | Shortcode | Required attrs | Optional attrs | Output |
 |---|---|---|---|
 | `[fu_card]` | — | `program`, `class` | Full 2-card block |
-| `[fu_startdate]` | `slot` | `program`, `class` | Date text span |
+| `[fu_startdate]` | `slot` | `program`, `class` | Date text span (`Monday, June 8th`) |
 | `[fu_spotsleft]` | `slot` | `program`, `class` | Spots-left text span |
-| `[fu_show_if_slot]…[/fu_show_if_slot]` | `slot` | `program` | Conditional wrapper |
+| `[fu_finaldate]` | — | `program`, `class` | Last program date (`June 29th`) |
+| `[fu_show_if_slot]…[/fu_show_if_slot]` | `slot` | `program` | Conditional wrapper (slot has data) |
+| `[fu_show_phase]…[/fu_show_phase]` | `phase` | `program` | Conditional wrapper (phase active) |
+| `[fu_countdown]` | — | `program`, `class` | Live D/H/M/S countdown |
 
 **`slot`** — `"1"` or `"2"`. Slot 1 is the next upcoming Monday; slot 2
 is the one after it.
 
+**`phase`** — `"high_demand"` or `"final_week"`. See *Phase transitions*
+above for the exact day-by-day windows.
+
 **`program`** — the slug of the program configured in Settings → Fitness
 Urgency. Omit to use the default program.
 
-**`class`** — extra CSS class(es) added to the rendered element
-(`[fu_card]` and the inline spans). Useful for targeted styling without
-touching the plugin's own CSS.
+**`class`** — extra CSS class(es) added to the rendered element. Useful
+for targeted styling without touching the plugin's own CSS.
