@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Fitness Urgency — Demo</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; }
+    h1 { margin-bottom: 0.25rem; }
+    .lead { color: #666; margin-top: 0; }
+
+    .fu { display: grid; gap: 0.75rem; margin: 1.5rem 0; }
+    .fu-slot { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; border: 1px solid #e3e3e3; border-radius: 10px; background: #fff; }
+    .fu-date { font-weight: 600; }
+    .fu-spots { color: #c62828; font-weight: 600; }
+    .fu-slot--sold-out .fu-spots { color: #888; }
+    .fu-slot--high-price { background: #fff8e1; border-color: #ffd54f; }
+    .fu-sold-out { letter-spacing: 0.5px; }
+
+    .controls { margin-top: 2rem; padding-top: 1rem; border-top: 1px dashed #ddd; }
+    .controls label { font-size: 0.9rem; color: #555; }
+    .controls input { font: inherit; padding: 0.35rem 0.5rem; }
+    .preview-row { display: grid; grid-template-columns: 110px 1fr; gap: 0.5rem 1rem; padding: 0.4rem 0; border-bottom: 1px solid #f1f1f1; font-size: 0.9rem; }
+    .preview-row .day { color: #777; font-variant-numeric: tabular-nums; }
+  </style>
+</head>
+<body>
+  <h1>Live Display</h1>
+  <p class="lead">Renders for today's date.</p>
+  <div id="fitness-urgency"></div>
+
+  <div class="controls">
+    <h2>Preview any date</h2>
+    <p>Walk through every day so you can verify the schedule matches your spec.</p>
+    <label>Start: <input id="from" type="date" value="2026-05-31" /></label>
+    <label>End: <input id="to" type="date" value="2026-07-02" /></label>
+    <div id="preview"></div>
+  </div>
+
+  <script src="fitness-urgency.js"></script>
+  <script>
+    function fmt(d) {
+      return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    }
+    function describe(slot) {
+      if (slot.type === 'highPrice') return 'Start next Monday (2 spots left, HIGH PRICE)';
+      var date = slot.date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+      var spots = slot.spots.soldOut
+        ? 'SOLD OUT'
+        : slot.spots.count + ' ' + (slot.spots.count === 1 ? 'spot' : 'spots') + ' left';
+      var sign = slot.daysUntil >= 0 ? '-' : '+';
+      return date + ' — ' + spots + ' (T' + sign + Math.abs(slot.daysUntil) + ')';
+    }
+    function renderPreview() {
+      var fromVal = document.getElementById('from').value;
+      var toVal = document.getElementById('to').value;
+      if (!fromVal || !toVal) return;
+      var f = fromVal.split('-'), t = toVal.split('-');
+      var d = new Date(+f[0], +f[1] - 1, +f[2]);
+      var end = new Date(+t[0], +t[1] - 1, +t[2]);
+      var html = '';
+      while (d <= end) {
+        var slots = window.FitnessUrgency.computeSlots(d);
+        html += '<div class="preview-row"><div class="day">' + fmt(d) + '</div><div>' +
+                slots.map(describe).join('<br>') + '</div></div>';
+        d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+      }
+      document.getElementById('preview').innerHTML = html;
+    }
+    document.getElementById('from').addEventListener('change', renderPreview);
+    document.getElementById('to').addEventListener('change', renderPreview);
+    renderPreview();
+  </script>
+</body>
+</html>
