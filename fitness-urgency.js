@@ -1,49 +1,66 @@
 /*!
  * Fitness Program Urgency Display
  *
- * Drop-in script that renders 1-2 upcoming Monday start dates with a
- * "spots left" countdown that shrinks as each start date approaches.
+ * Fills in date and "spots left" text inside an existing design.
+ * Works inside Elementor / CartFlows / any HTML — the designer marks the
+ * spots in their layout with data attributes and the script writes to them.
  *
- * USAGE
- *   1. Add a container element to your page:
- *        <div id="fitness-urgency"></div>
- *   2. Configure the program dates below (or pass via window.FitnessUrgencyConfig
- *      before loading this script).
- *   3. Include the script:
+ * MARKUP THE DESIGNER ADDS TO THE PAGE
+ * ------------------------------------
+ *   1. Specify the program's start dates somewhere on the page (anywhere,
+ *      can be a hidden div). Comma-separated YYYY-MM-DD Mondays:
+ *
+ *        <div data-fu-dates="2026-06-08,2026-06-15,2026-06-22,2026-06-29"></div>
+ *
+ *   2. Mark the two slot blocks in the design. Each slot has a date
+ *      element and a spots element identified by data attributes:
+ *
+ *        <div data-fu-slot="1">
+ *          ...
+ *          <span data-fu-date>Monday, June 8</span>
+ *          ...
+ *          <span data-fu-spots>6 spots left</span>
+ *          ...
+ *        </div>
+ *
+ *        <div data-fu-slot="2">
+ *          <span data-fu-date>Monday, June 15</span>
+ *          <span data-fu-spots>9 spots left</span>
+ *        </div>
+ *
+ *   3. Include this script once at the end of the page (or in the footer
+ *      via your code-injection plugin):
+ *
  *        <script src="fitness-urgency.js"></script>
  *
- * The script auto-renders on DOMContentLoaded and re-renders at local midnight
- * so the display updates without a page refresh.
+ * BEHAVIOUR
+ * ---------
+ *   - The script writes the next 1-2 upcoming Monday start dates into the
+ *     two slots, with a "spots left" countdown that shrinks as each date
+ *     approaches.
+ *   - When only one date is left to show (Wed-Sat after the previous
+ *     Monday but before the final date sells out), Slot 2 is hidden via
+ *     display:none.
+ *   - When the final start date sells out (Sun-Tue around it), Slot 2 is
+ *     replaced with the high-price "Start next Monday (2 spots left)"
+ *     message and the slot gets a `fu-high-price` class for styling.
+ *   - When the final start date's window is fully past, Slot 1 shows the
+ *     high-price message and Slot 2 is hidden.
  */
 (function () {
   'use strict';
 
-  // ============================================================
-  // CONFIG  (override via window.FitnessUrgencyConfig before load)
-  // ============================================================
   var DEFAULTS = {
-    // Monday start dates as 'YYYY-MM-DD' (local time).
-    programStartDates: [
-      '2026-06-08',
-      '2026-06-15',
-      '2026-06-22',
-      '2026-06-29',
-    ],
-    containerSelector: '#fitness-urgency',
+    // Optional: dates can also come from data-fu-dates on a page element.
+    programStartDates: [],
     locale: 'en-US',
+    dateFormat: { weekday: 'long', month: 'long', day: 'numeric' },
     // Copy shown after the final start date has passed.
     highPriceMessage: 'Start next Monday',
     highPriceSpots: 2,
-    // CSS class hooks (style however you like in your own stylesheet).
-    classes: {
-      root: 'fu',
-      slot: 'fu-slot',
-      slotHighPrice: 'fu-slot--high-price',
-      slotSoldOut: 'fu-slot--sold-out',
-      date: 'fu-date',
-      spots: 'fu-spots',
-      soldOut: 'fu-sold-out',
-    },
+    // Class hooks the script toggles on slot elements (style in your CSS).
+    highPriceClass: 'fu-high-price',
+    soldOutClass: 'fu-sold-out',
   };
 
   var CONFIG = Object.assign(
@@ -55,7 +72,7 @@
   // ============================================================
   // SPOTS TABLE
   // ============================================================
-  // T = days until start date. Pattern derived from the spec:
+  // T = days until start date.
   //   T=15,14 -> 9   T=13,12 -> 8   T=11,10 -> 7   T=9,8 -> 6
   //   T=7 -> 5  T=6 -> 4  T=5 -> 3  T=4 -> 2  T=3,2 -> 1
   //   T=1,0,-1 -> SOLD OUT
@@ -68,7 +85,6 @@
     if (t === 5) return { count: 3 };
     if (t === 6) return { count: 4 };
     if (t === 7) return { count: 5 };
-    // T >= 8: 5 + ceil((T - 7) / 2)  =>  8,9->6 ; 10,11->7 ; 12,13->8 ; ...
     return { count: 5 + Math.ceil((t - 7) / 2) };
   }
 
@@ -76,8 +92,8 @@
   // DATE HELPERS
   // ============================================================
   function parseISODate(s) {
-    var parts = s.split('-');
-    return new Date(+parts[0], +parts[1] - 1, +parts[2]);
+    var p = s.split('-');
+    return new Date(+p[0], +p[1] - 1, +p[2]);
   }
 
   function startOfDay(d) {
@@ -87,29 +103,24 @@
   }
 
   function daysBetween(from, to) {
-    var ms = startOfDay(to).getTime() - startOfDay(from).getTime();
-    return Math.round(ms / 86400000);
+    return Math.round((startOfDay(to).getTime() - startOfDay(from).getTime()) / 86400000);
   }
 
   function formatDate(d) {
-    return d.toLocaleDateString(CONFIG.locale, {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-    });
+    return d.toLocaleDateString(CONFIG.locale, CONFIG.dateFormat);
+  }
+
+  function spotsLabel(n) {
+    return n + ' ' + (n === 1 ? 'spot' : 'spots') + ' left';
   }
 
   // ============================================================
-  // SLOT COMPUTATION
+  // SLOT COMPUTATION  (logic identical to spec)
   // ============================================================
-  // Returns 1-2 slot objects:
-  //   { type: 'date', date, daysUntil, spots: { count } | { soldOut: true } }
-  //   { type: 'highPrice' }
   function computeSlots(today, startDateStrings) {
-    var dates = (startDateStrings || CONFIG.programStartDates).map(parseISODate);
+    var dates = (startDateStrings || []).map(parseISODate);
     var t0 = startOfDay(today);
 
-    // Slot 1: earliest D whose active window hasn't ended (today <= D + 1).
     var slot1Index = -1;
     for (var i = 0; i < dates.length; i++) {
       if (daysBetween(t0, dates[i]) >= -1) {
@@ -119,7 +130,6 @@
     }
 
     if (slot1Index === -1) {
-      // Past the final start date's window — only the high-price slot.
       return [{ type: 'highPrice' }];
     }
 
@@ -146,7 +156,6 @@
       ];
     }
 
-    // No real next date — show high-price slot only once Slot 1 sells out.
     if (slot1.spots.soldOut) {
       return [slot1, { type: 'highPrice' }];
     }
@@ -154,66 +163,65 @@
   }
 
   // ============================================================
-  // RENDERING
+  // DOM WRITING
   // ============================================================
-  function escapeHTML(s) {
-    return String(s).replace(/[&<>"']/g, function (c) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
-    });
+  function readDatesFromDOM() {
+    var el = document.querySelector('[data-fu-dates]');
+    if (!el) return [];
+    var s = el.getAttribute('data-fu-dates') || '';
+    return s.split(',').map(function (v) { return v.trim(); }).filter(Boolean);
   }
 
-  function spotsLabel(n) {
-    return n + ' ' + (n === 1 ? 'spot' : 'spots') + ' left';
-  }
+  function applyToSlot(el, data) {
+    if (!el) return;
+    el.classList.remove(CONFIG.highPriceClass, CONFIG.soldOutClass);
 
-  function renderSlot(slot) {
-    var cls = CONFIG.classes;
-    if (slot.type === 'highPrice') {
-      return (
-        '<div class="' + cls.slot + ' ' + cls.slotHighPrice + '">' +
-          '<div class="' + cls.date + '">' + escapeHTML(CONFIG.highPriceMessage) + '</div>' +
-          '<div class="' + cls.spots + '">' + escapeHTML(spotsLabel(CONFIG.highPriceSpots)) + '</div>' +
-        '</div>'
-      );
+    if (!data) {
+      el.style.display = 'none';
+      el.setAttribute('aria-hidden', 'true');
+      return;
     }
-    var dateHtml = escapeHTML(formatDate(slot.date));
-    var spotsHtml;
-    var slotClass = cls.slot;
-    if (slot.spots.soldOut) {
-      slotClass += ' ' + cls.slotSoldOut;
-      spotsHtml = '<span class="' + cls.soldOut + '">SOLD OUT</span>';
-    } else {
-      spotsHtml = escapeHTML(spotsLabel(slot.spots.count));
+    el.style.display = '';
+    el.removeAttribute('aria-hidden');
+
+    var dateEl = el.querySelector('[data-fu-date]');
+    var spotsEl = el.querySelector('[data-fu-spots]');
+
+    if (data.type === 'highPrice') {
+      el.classList.add(CONFIG.highPriceClass);
+      if (dateEl) dateEl.textContent = CONFIG.highPriceMessage;
+      if (spotsEl) spotsEl.textContent = spotsLabel(CONFIG.highPriceSpots);
+      return;
     }
-    return (
-      '<div class="' + slotClass + '">' +
-        '<div class="' + cls.date + '">' + dateHtml + '</div>' +
-        '<div class="' + cls.spots + '">' + spotsHtml + '</div>' +
-      '</div>'
-    );
+
+    if (dateEl) dateEl.textContent = formatDate(data.date);
+    if (data.spots.soldOut) {
+      el.classList.add(CONFIG.soldOutClass);
+      if (spotsEl) spotsEl.textContent = 'SOLD OUT';
+    } else if (spotsEl) {
+      spotsEl.textContent = spotsLabel(data.spots.count);
+    }
   }
 
   function render() {
-    var container = document.querySelector(CONFIG.containerSelector);
-    if (!container) return;
-    var slots = computeSlots(new Date());
-    container.className = (container.className ? container.className + ' ' : '') + CONFIG.classes.root;
-    container.innerHTML = slots.map(renderSlot).join('');
+    var dates = CONFIG.programStartDates.length ? CONFIG.programStartDates : readDatesFromDOM();
+    if (!dates.length) return; // No dates configured — leave the page alone.
+
+    var slots = computeSlots(new Date(), dates);
+    applyToSlot(document.querySelector('[data-fu-slot="1"]'), slots[0]);
+    applyToSlot(document.querySelector('[data-fu-slot="2"]'), slots[1]);
   }
 
-  // Re-render at the next local midnight so the display rolls over without
-  // requiring a page refresh.
   function scheduleMidnightRefresh() {
     var now = new Date();
     var next = new Date(now);
-    next.setHours(24, 0, 5, 0); // 5s after midnight to avoid edge cases
+    next.setHours(24, 0, 5, 0);
     setTimeout(function () {
       render();
       scheduleMidnightRefresh();
     }, next.getTime() - now.getTime());
   }
 
-  // Public API (also useful for tests).
   if (typeof window !== 'undefined') {
     window.FitnessUrgency = {
       render: render,
