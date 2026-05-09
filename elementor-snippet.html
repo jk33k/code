@@ -1,0 +1,56 @@
+<!--
+  ELEMENTOR HTML WIDGET — Fitness Program Urgency Block
+  =====================================================
+  Drop this entire block into a single Elementor "HTML" widget on the
+  landing page. The script tag at the bottom only needs to load once
+  per page (you can also load it site-wide via WPCode instead and
+  delete the <script> line below).
+
+  WHEN A NEW PROGRAM CYCLE STARTS:
+  Edit only the data-fu-dates="…" line — comma-separated YYYY-MM-DD
+  Mondays. Everything else updates automatically.
+-->
+
+<style>
+  .fitness-urgency { display: grid; gap: 12px; max-width: 520px; margin: 0 auto; font-family: inherit; }
+  .fitness-urgency .fu-card {
+    display: flex; justify-content: space-between; align-items: center; gap: 16px;
+    padding: 18px 22px; border: 2px solid #1f1f1f; border-radius: 12px; background: #fff;
+    transition: background-color 0.2s, border-color 0.2s, opacity 0.2s;
+  }
+  .fitness-urgency .fu-card-date { font-weight: 700; font-size: 1.05rem; color: #1f1f1f; letter-spacing: 0.2px; }
+  .fitness-urgency .fu-card-spots { font-weight: 700; font-size: 1.05rem; color: #d32f2f; white-space: nowrap; }
+
+  /* Sold-out state: greyed out so the live date pops */
+  .fitness-urgency .fu-card.fu-sold-out { opacity: 0.55; border-color: #bbb; background: #f7f7f7; }
+  .fitness-urgency .fu-card.fu-sold-out .fu-card-spots { color: #777; letter-spacing: 1px; font-size: 0.95rem; }
+
+  /* High-price state: warm highlight to flag the price bump */
+  .fitness-urgency .fu-card.fu-high-price { background: #fff8e1; border-color: #ffb300; }
+  .fitness-urgency .fu-card.fu-high-price .fu-card-spots { color: #b26a00; }
+</style>
+
+<div class="fitness-urgency">
+
+  <!-- ========== EDIT THIS LINE EACH NEW CYCLE ========== -->
+  <div data-fu-dates="2026-06-08,2026-06-15,2026-06-22,2026-06-29" hidden></div>
+  <!-- =================================================== -->
+
+  <div class="fu-card" data-fu-slot="1">
+    <span class="fu-card-date" data-fu-date>&nbsp;</span>
+    <span class="fu-card-spots" data-fu-spots>&nbsp;</span>
+  </div>
+
+  <div class="fu-card" data-fu-slot="2">
+    <span class="fu-card-date" data-fu-date>&nbsp;</span>
+    <span class="fu-card-spots" data-fu-spots>&nbsp;</span>
+  </div>
+
+</div>
+
+<!--
+  Loads the urgency script. Replace the URL with wherever you host
+  fitness-urgency.js (Media Library, theme assets, or a CDN).
+  If you load this script site-wide via WPCode, delete this line.
+-->
+<script src="https://YOUR-DOMAIN.com/wp-content/uploads/fitness-urgency.js"></script>
