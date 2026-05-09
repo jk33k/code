@@ -1,0 +1,63 @@
+/* Fitness Urgency — frontend card styles
+   Override any rule in your theme's CSS; all selectors are scoped
+   to .fu-urgency so specificity is easy to beat with one extra class. */
+
+.fu-urgency {
+  display: grid;
+  gap: 12px;
+  max-width: 520px;
+  font-family: inherit;
+}
+
+.fu-urgency .fu-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 22px;
+  border: 2px solid #1f1f1f;
+  border-radius: 12px;
+  background: #fff;
+  transition: background-color 0.2s, border-color 0.2s, opacity 0.2s;
+}
+
+.fu-urgency .fu-card-date {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: #1f1f1f;
+  letter-spacing: 0.2px;
+}
+
+.fu-urgency .fu-card-spots {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: #d32f2f;
+  white-space: nowrap;
+}
+
+/* Sold-out: greyed out so the live date stands out */
+.fu-urgency .fu-card.fu-sold-out {
+  opacity: 0.55;
+  border-color: #bbb;
+  background: #f7f7f7;
+}
+
+.fu-urgency .fu-card.fu-sold-out .fu-card-spots {
+  color: #777;
+  letter-spacing: 1px;
+  font-size: 0.95rem;
+}
+
+/* High-price: warm highlight flags the price bump */
+.fu-urgency .fu-card.fu-high-price {
+  background: #fff8e1;
+  border-color: #ffb300;
+}
+
+.fu-urgency .fu-card.fu-high-price .fu-card-spots {
+  color: #b26a00;
+}
+
+/* Inline variable spans */
+.fu-var.fu-sold-out  { color: #888; letter-spacing: 0.5px; }
+.fu-var.fu-high-price { color: #b26a00; font-weight: 700; }
