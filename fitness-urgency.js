@@ -12,24 +12,37 @@
  *
  *        <div data-fu-dates="2026-06-08,2026-06-15,2026-06-22,2026-06-29"></div>
  *
- *   2. Mark the two slot blocks in the design. Each slot has a date
- *      element and a spots element identified by data attributes:
+ *   2a. NAMED VARIABLES (use anywhere, on any page in the funnel):
+ *
+ *        Sign up for <span data-fu-var="startdate1"></span>
+ *        — only <span data-fu-var="spotsleft1"></span>!
+ *
+ *      Available variables:
+ *        startdate1   -> "Monday, June 8" / "Start next Monday"
+ *        startdate2   -> "Monday, June 15" / "Start next Monday"
+ *        spotsleft1   -> "9 spots left" / "1 spot left" / "SOLD OUT" / "2 spots left"
+ *        spotsleft2   -> same
+ *
+ *      When a slot has no data (e.g. no second date to show on a single-date
+ *      day), the [data-fu-var] element is hidden via display:none. Wrap a
+ *      whole sentence in [data-fu-show-if-slot="2"] to hide the surrounding
+ *      copy with it:
+ *
+ *        <span data-fu-show-if-slot="2">
+ *          or join us <span data-fu-var="startdate2"></span>!
+ *        </span>
+ *
+ *   2b. CARD-STYLE SLOT BLOCKS (alternative to 2a; both can be used):
  *
  *        <div data-fu-slot="1">
- *          ...
  *          <span data-fu-date>Monday, June 8</span>
- *          ...
  *          <span data-fu-spots>6 spots left</span>
- *          ...
  *        </div>
  *
- *        <div data-fu-slot="2">
- *          <span data-fu-date>Monday, June 15</span>
- *          <span data-fu-spots>9 spots left</span>
- *        </div>
+ *      The wrapping element gets `fu-sold-out` / `fu-high-price` classes
+ *      added when those states are active, for styling hooks.
  *
- *   3. Include this script once at the end of the page (or in the footer
- *      via your code-injection plugin):
+ *   3. Include this script once on the site (or per page):
  *
  *        <script src="fitness-urgency.js"></script>
  *
@@ -39,13 +52,14 @@
  *     two slots, with a "spots left" countdown that shrinks as each date
  *     approaches.
  *   - When only one date is left to show (Wed-Sat after the previous
- *     Monday but before the final date sells out), Slot 2 is hidden via
- *     display:none.
- *   - When the final start date sells out (Sun-Tue around it), Slot 2 is
- *     replaced with the high-price "Start next Monday (2 spots left)"
- *     message and the slot gets a `fu-high-price` class for styling.
- *   - When the final start date's window is fully past, Slot 1 shows the
+ *     Monday but before the final date sells out), Slot 2 is hidden.
+ *   - When the final start date sells out (Sun-Tue around it), Slot 2
+ *     becomes the high-price "Start next Monday (2 spots left)" message
+ *     and gets a `fu-high-price` class for styling.
+ *   - When the final start date's window is fully past, Slot 1 becomes the
  *     high-price message and Slot 2 is hidden.
+ *   - Re-renders at local midnight so the display rolls over without a
+ *     page refresh.
  */
 (function () {
   'use strict';
@@ -58,7 +72,7 @@
     // Copy shown after the final start date has passed.
     highPriceMessage: 'Start next Monday',
     highPriceSpots: 2,
-    // Class hooks the script toggles on slot elements (style in your CSS).
+    // Class hooks the script toggles on slot / variable elements.
     highPriceClass: 'fu-high-price',
     soldOutClass: 'fu-sold-out',
   };
@@ -163,6 +177,34 @@
   }
 
   // ============================================================
+  // VARIABLES
+  // ============================================================
+  // Map slots -> { startdate1, spotsleft1, startdate2, spotsleft2 }
+  // Each value is { visible, text, soldOut, highPrice }.
+  function computeVariables(slots) {
+    var vars = {};
+    for (var i = 0; i < 2; i++) {
+      var n = i + 1;
+      var slot = slots[i];
+      if (!slot) {
+        vars['startdate' + n] = { visible: false };
+        vars['spotsleft' + n] = { visible: false };
+        continue;
+      }
+      if (slot.type === 'highPrice') {
+        vars['startdate' + n] = { visible: true, text: CONFIG.highPriceMessage, highPrice: true };
+        vars['spotsleft' + n] = { visible: true, text: spotsLabel(CONFIG.highPriceSpots), highPrice: true };
+      } else {
+        vars['startdate' + n] = { visible: true, text: formatDate(slot.date) };
+        vars['spotsleft' + n] = slot.spots.soldOut
+          ? { visible: true, text: 'SOLD OUT', soldOut: true }
+          : { visible: true, text: spotsLabel(slot.spots.count) };
+      }
+    }
+    return vars;
+  }
+
+  // ============================================================
   // DOM WRITING
   // ============================================================
   function readDatesFromDOM() {
@@ -203,6 +245,42 @@
     }
   }
 
+  function applyVariables(slots) {
+    var vars = computeVariables(slots);
+
+    // [data-fu-var="..."] -> text replacement (hidden when no data)
+    var varEls = document.querySelectorAll('[data-fu-var]');
+    Array.prototype.forEach.call(varEls, function (el) {
+      var name = el.getAttribute('data-fu-var');
+      var v = vars[name];
+      el.classList.remove(CONFIG.highPriceClass, CONFIG.soldOutClass);
+      if (!v || !v.visible) {
+        el.style.display = 'none';
+        el.setAttribute('aria-hidden', 'true');
+        return;
+      }
+      el.style.display = '';
+      el.removeAttribute('aria-hidden');
+      el.textContent = v.text;
+      if (v.soldOut) el.classList.add(CONFIG.soldOutClass);
+      if (v.highPrice) el.classList.add(CONFIG.highPriceClass);
+    });
+
+    // [data-fu-show-if-slot="N"] -> wrapper visibility
+    var showEls = document.querySelectorAll('[data-fu-show-if-slot]');
+    Array.prototype.forEach.call(showEls, function (el) {
+      var n = parseInt(el.getAttribute('data-fu-show-if-slot'), 10);
+      var slot = slots[n - 1];
+      if (slot) {
+        el.style.display = '';
+        el.removeAttribute('aria-hidden');
+      } else {
+        el.style.display = 'none';
+        el.setAttribute('aria-hidden', 'true');
+      }
+    });
+  }
+
   function render() {
     var dates = CONFIG.programStartDates.length ? CONFIG.programStartDates : readDatesFromDOM();
     if (!dates.length) return; // No dates configured — leave the page alone.
@@ -210,6 +288,7 @@
     var slots = computeSlots(new Date(), dates);
     applyToSlot(document.querySelector('[data-fu-slot="1"]'), slots[0]);
     applyToSlot(document.querySelector('[data-fu-slot="2"]'), slots[1]);
+    applyVariables(slots);
   }
 
   function scheduleMidnightRefresh() {
@@ -226,6 +305,7 @@
     window.FitnessUrgency = {
       render: render,
       computeSlots: computeSlots,
+      computeVariables: computeVariables,
       spotsForDaysUntil: spotsForDaysUntil,
       config: CONFIG,
     };
