@@ -84,7 +84,7 @@ class FU_Shortcodes {
     public static function card( array $atts ): string {
         $atts = shortcode_atts( [ 'program' => '', 'class' => '' ], $atts );
         [ $renderer, $slots ] = self::resolve( $atts );
-        if ( ! $renderer ) return '';
+        if ( ! $renderer || empty( $slots ) ) return '';
 
         ob_start();
         require FU_DIR . 'views/card.php';
@@ -118,9 +118,8 @@ class FU_Shortcodes {
     // ----------------------------------------------------------------
     public static function finaldate( array $atts ): string {
         $atts    = shortcode_atts( [ 'program' => '', 'class' => '' ], $atts );
-        $program = $atts['program']
-            ? FU_Programs::get( $atts['program'] )
-            : FU_Programs::default();
+        $program = self::program_from_atts( $atts );
+        if ( self::mode_of( $program ) === 'ongoing' ) return '';
         if ( ! $program || empty( $program['dates'] ) ) return '';
 
         $renderer     = new FU_Renderer( [ 'timezone' => wp_timezone_string() ] );
@@ -148,9 +147,8 @@ class FU_Shortcodes {
     // ----------------------------------------------------------------
     public static function show_phase( array $atts, ?string $content = '' ): string {
         $atts    = shortcode_atts( [ 'phase' => '', 'program' => '' ], $atts );
-        $program = $atts['program']
-            ? FU_Programs::get( $atts['program'] )
-            : FU_Programs::default();
+        $program = self::program_from_atts( $atts );
+        if ( self::mode_of( $program ) === 'ongoing' ) return '';
         if ( ! $program || empty( $program['dates'] ) ) return '';
 
         $renderer      = new FU_Renderer( [ 'timezone' => wp_timezone_string() ] );
@@ -173,9 +171,8 @@ class FU_Shortcodes {
     // ----------------------------------------------------------------
     public static function countdown( array $atts ): string {
         $atts    = shortcode_atts( [ 'program' => '', 'class' => '' ], $atts );
-        $program = $atts['program']
-            ? FU_Programs::get( $atts['program'] )
-            : FU_Programs::default();
+        $program = self::program_from_atts( $atts );
+        if ( self::mode_of( $program ) === 'ongoing' ) return '';
         if ( ! $program || empty( $program['dates'] ) ) return '';
 
         $renderer     = new FU_Renderer( [ 'timezone' => wp_timezone_string() ] );
@@ -239,7 +236,8 @@ class FU_Shortcodes {
         $programs_js = [];
         foreach ( FU_Programs::all() as $p ) {
             $programs_js[ $p['slug'] ] = [
-                'dates'            => array_values( $p['dates'] ),
+                'dates'            => array_values( $p['dates'] ?? [] ),
+                'evergreen'        => ! empty( $p['evergreen'] ),
                 'highPriceMessage' => $p['high_price_label'] ?? 'Start next Monday',
                 'highPriceSpots'   => (int) ( $p['high_price_spots'] ?? 2 ),
             ];
@@ -262,15 +260,40 @@ class FU_Shortcodes {
     // Internal
     // ----------------------------------------------------------------
 
+    /** Fetch the program for the given atts, or null. */
+    private static function program_from_atts( array $atts ): ?array {
+        return $atts['program']
+            ? FU_Programs::get( $atts['program'] )
+            : FU_Programs::default();
+    }
+
+    /** Display mode for a program (or 'fixed' when null). */
+    private static function mode_of( ?array $program ): string {
+        if ( ! $program ) {
+            return 'fixed';
+        }
+        return FU_Renderer::resolve_mode(
+            array_values( $program['dates'] ?? [] ),
+            ! empty( $program['evergreen'] )
+        );
+    }
+
     /**
      * @return array{ FU_Renderer|null, array }
      */
     private static function resolve( array $atts ): array {
-        $program = $atts['program']
-            ? FU_Programs::get( $atts['program'] )
-            : FU_Programs::default();
+        $program = self::program_from_atts( $atts );
+        if ( ! $program ) {
+            return [ null, [] ];
+        }
 
-        if ( ! $program || empty( $program['dates'] ) ) return [ null, [] ];
+        $mode  = self::mode_of( $program );
+        $dates = array_values( $program['dates'] ?? [] );
+
+        // Non-ongoing modes need at least one configured date.
+        if ( $mode !== 'ongoing' && empty( $dates ) ) {
+            return [ null, [] ];
+        }
 
         $renderer = new FU_Renderer( [
             'timezone'           => wp_timezone_string(),
@@ -278,7 +301,12 @@ class FU_Shortcodes {
             'high_price_spots'   => $program['high_price_spots'] ?? 2,
         ] );
 
-        $slots = $renderer->compute_slots( $program['dates'] );
+        if ( $mode === 'ongoing' ) {
+            $dates = $renderer->upcoming_mondays( 5 );
+        }
+        $max_lead = ( $mode === 'single' ) ? 21 : null;
+
+        $slots = $renderer->compute_slots( $dates, null, $max_lead );
         return [ $renderer, $slots ];
     }
 }
