@@ -43,7 +43,7 @@ class FU_Renderer {
      * @param  \DateTimeInterface|null $today  Defaults to now in site TZ
      * @return array<int, array>               1 or 2 slot arrays
      */
-    public function compute_slots( array $date_strings, ?\DateTimeInterface $today = null ): array {
+    public function compute_slots( array $date_strings, ?\DateTimeInterface $today = null, ?int $max_lead_days = null ): array {
         $today   = $this->start_of_day( $today ?? new \DateTime( 'now', $this->tz ) );
         $dates   = array_map( [ $this, 'parse_iso_date' ], $date_strings );
 
@@ -67,6 +67,11 @@ class FU_Renderer {
             'days_until' => $slot1_t,
             'spots'      => $this->spots_for_days_until( $slot1_t ),
         ];
+
+        // Single-date lead gate: hide the whole display until within max_lead_days.
+        if ( $max_lead_days !== null && $slot1_t > $max_lead_days ) {
+            return [];
+        }
 
         $slot2_date = $dates[ $slot1_index + 1 ] ?? null;
         if ( $slot2_date ) {

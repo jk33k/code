@@ -288,4 +288,51 @@ class RendererTest extends TestCase {
         $out = $this->r->upcoming_mondays( 2, $this->r->parse_iso_date( '2026-05-25' ) );
         $this->assertSame( [ '2026-05-25', '2026-06-01' ], $out );
     }
+
+    // ----------------------------------------------------------------
+    // compute_slots: 21-day lead gate + ongoing integration (Task 3)
+    // ----------------------------------------------------------------
+
+    public function test_single_gate_hides_beyond_21_days(): void {
+        $today = $this->r->parse_iso_date( '2026-06-08' );
+        // 2026-06-30 is 22 days after 2026-06-08.
+        $this->assertSame( [], $this->r->compute_slots( [ '2026-06-30' ], $today, 21 ) );
+    }
+
+    public function test_single_gate_shows_at_21_days(): void {
+        $today = $this->r->parse_iso_date( '2026-06-08' );
+        // 2026-06-29 is exactly 21 days after.
+        $slots = $this->r->compute_slots( [ '2026-06-29' ], $today, 21 );
+        $this->assertCount( 1, $slots );
+        $this->assertSame( 'date', $slots[0]['type'] );
+    }
+
+    public function test_single_gate_still_shows_sold_out_and_high_price(): void {
+        // Gate must not suppress the SOLD-OUT / high-price end of a single date.
+        $today = $this->r->parse_iso_date( '2026-06-08' ); // the date itself, T=0
+        $slots = $this->r->compute_slots( [ '2026-06-08' ], $today, 21 );
+        $this->assertCount( 2, $slots );
+        $this->assertSame( 'date', $slots[0]['type'] );
+        $this->assertTrue( $slots[0]['spots']['sold_out'] ?? false );
+        $this->assertSame( 'high_price', $slots[1]['type'] );
+    }
+
+    public function test_max_lead_default_is_unchanged(): void {
+        // Omitting the gate keeps the original behavior (far date still shows).
+        $today = $this->r->parse_iso_date( '2026-06-08' );
+        $slots = $this->r->compute_slots( [ '2026-06-30' ], $today ); // 22 days, no gate
+        $this->assertCount( 1, $slots );
+        $this->assertSame( 'date', $slots[0]['type'] );
+    }
+
+    public function test_ongoing_always_two_date_slots(): void {
+        foreach ( [ '2026-05-22', '2026-05-24', '2026-05-25', '2026-05-26', '2026-05-27', '2026-06-03' ] as $iso ) {
+            $today = $this->r->parse_iso_date( $iso );
+            $dates = $this->r->upcoming_mondays( 5, $today );
+            $slots = $this->r->compute_slots( $dates, $today );
+            $this->assertCount( 2, $slots, "two slots on $iso" );
+            $this->assertSame( 'date', $slots[0]['type'], "slot1 date on $iso" );
+            $this->assertSame( 'date', $slots[1]['type'], "slot2 date on $iso" );
+        }
+    }
 }
