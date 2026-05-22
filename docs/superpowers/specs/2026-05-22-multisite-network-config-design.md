@@ -171,7 +171,16 @@ Identical HTML on every subsite
 - Activated on non-multisite → blocked at activation with a clear message.
 - Save without valid nonce / insufficient capability → request rejected.
 - Invalid timezone string → `FU_Renderer` falls back to UTC.
-- Corrupt/malformed date in config → that date is skipped, page still renders.
+- Date validation boundary is the storage layer: `FU_Programs::sanitize()`
+  only persists strings matching `^\d{4}-\d{2}-\d{2}$` (and the admin uses an
+  `<input type="date">` picker), so malformed dates cannot reach the renderer
+  in normal operation. As a fail-fast internal contract, `parse_iso_date()`
+  throws `InvalidArgumentException` on a non-matching or unparseable string
+  rather than silently producing a bad value — surfacing programmer error or
+  direct-DB tampering at the point of failure. (Backlog: the regex accepts
+  numerically-impossible dates like `2026-13-01`, which `createFromFormat`
+  rolls over rather than rejecting; a `checkdate()` guard would close this, but
+  the picker + sanitizer make it non-reachable today.)
 - Empty network config → shortcodes render nothing (existing behavior),
   no fatals.
 
