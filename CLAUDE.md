@@ -30,7 +30,7 @@ edits code per cycle.
 ## Current status
 
 - **Version**: 2.1.0 (plugin), pushed on branch `claude/fitness-urgency-script-RtPun`.
-- **Tests**: 60 PHPUnit tests pass (`FU_Renderer` + `FU_Programs`).
+- **Tests**: 72 PHPUnit tests pass (`FU_Renderer` + `FU_Programs`).
 - **Deploy artifact**: `wp-plugin/dwc-spots-left.zip` (rebuilt on every
   release).
 - **Installed**: User has installed and confirmed v1.1.0 works on their
@@ -65,8 +65,9 @@ edits code per cycle.
         │   ├── css/fu-admin.css          (settings-page styles)
         │   └── js/fu-refresh.js          (midnight rollover + countdown ticker)
         └── tests/
-            ├── bootstrap.php
-            └── RendererTest.php          (60 tests: FU_Renderer + FU_Programs)
+            ├── bootstrap.php             (WP stubs; loads FU_Renderer + FU_Programs)
+            ├── RendererTest.php          (slot/phase/mode/Mondays/gate tests)
+            └── ProgramsTest.php          (network-store + evergreen sanitize tests)
 ```
 
 ---
