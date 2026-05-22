@@ -9,6 +9,10 @@ to a "Start next Monday — 2 spots left" high-price message.
 Network Admin, then designers drop shortcodes wherever urgency content
 should appear.
 
+> 👉 **New here, or just want the fast path?** Start with
+> **[DESIGNER-MANUAL.md](DESIGNER-MANUAL.md)** — a short, copy-paste guide.
+> This file is the complete reference for when you need the fine detail.
+
 ---
 
 ## Where dates are managed (Multisite)
