@@ -50,4 +50,21 @@ final class ProgramsTest extends TestCase {
         FU_Programs::save( [ 'slug' => 'a', 'name' => 'A', 'dates' => [], 'default' => true ] );
         $this->assertCount( 1, FU_Programs::all(), 'save must refresh the cache' );
     }
+
+    public function test_sanitize_sets_evergreen_when_schedule_is_ongoing(): void {
+        $p = FU_Programs::sanitize( [ 'slug' => 'ev', 'name' => 'Ever', 'schedule' => 'Ongoing', 'dates' => [] ] );
+        $this->assertIsArray( $p );
+        $this->assertTrue( $p['evergreen'] );
+    }
+
+    public function test_sanitize_evergreen_false_without_keyword(): void {
+        $p = FU_Programs::sanitize( [ 'slug' => 'fx', 'name' => 'Fixed', 'schedule' => '', 'dates' => [ '2026-06-08' ] ] );
+        $this->assertIsArray( $p );
+        $this->assertFalse( $p['evergreen'] );
+    }
+
+    public function test_sanitize_evergreen_trims_and_lowercases(): void {
+        $p = FU_Programs::sanitize( [ 'slug' => 'ev2', 'name' => 'Ever2', 'schedule' => '  ONGOING  ', 'dates' => [] ] );
+        $this->assertTrue( $p['evergreen'] );
+    }
 }
