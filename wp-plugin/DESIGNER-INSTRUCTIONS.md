@@ -82,6 +82,27 @@ have no settings page for this plugin.
 Each "program" is a named set of four Monday start dates. All programs are
 managed centrally by a super admin; subsite editors only place shortcodes.
 
+### Date modes (auto-detected)
+
+The number of dates you enter selects the behavior automatically:
+
+| Entered | Mode | Behavior |
+|---|---|---|
+| 1 date | **single** | Hidden until 21 days before the date, then the normal spots countdown → SOLD OUT → high-price card. |
+| 2 dates | **double** | Current rolling logic with two dates. |
+| 3 dates | **triple** | Current rolling logic with three dates. |
+| 4+ dates | **fixed** | The classic cycle (unchanged). |
+| `ongoing` in the **Schedule** field | **evergreen** | Generates the next two upcoming Mondays from today and rolls forward indefinitely. The date pickers are ignored. |
+
+In **evergreen** mode there is no final date, so `[fu_countdown]`,
+`[fu_show_phase phase="final_week"]`, and `[fu_show_phase phase="high_demand"]`
+all render nothing, and `[fu_finaldate]` is empty. Use those only on
+fixed/multi-date campaigns.
+
+> **Note (single mode):** because a single date is gated to a 21-day window,
+> if a visitor loads the page when the date is more than 21 days away they'll
+> see nothing for it; it appears on the next page load inside the window.
+
 ### Add a program
 
 1. **Network Admin** → **Settings → DWC - Spots Left**.

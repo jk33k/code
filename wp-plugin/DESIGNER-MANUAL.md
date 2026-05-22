@@ -25,6 +25,27 @@ numbers by hand** — they update themselves every day.
 
 ---
 
+## How many dates you enter = which mode (auto)
+
+The plugin picks the behavior from what the super admin enters in **Network
+Admin → Settings → DWC - Spots Left**:
+
+| What's entered | Mode | What shows |
+|---|---|---|
+| **1 date** | Single | Urgency switches on **21 days** before the date, counts down, sells out, then "Start next Monday" |
+| **2 or 3 dates** | Multi | The usual rolling cards, with that many dates |
+| **4+ dates** | Standard | Exactly the classic cycle |
+| Type **`ongoing`** in the **Schedule** field | Evergreen | Always shows the next two upcoming Mondays and rolls forward **forever** — no end date |
+
+**Evergreen / ongoing:** in the Schedule text box, type the word `ongoing`
+(the date pickers are then ignored). New Mondays appear automatically every
+week — a date stays visible (selling out) through the Tuesday after it, and
+the next Monday rolls in on Wednesday. Because there's no final date,
+`[fu_countdown]` and `[fu_show_phase]` banners produce **nothing** in evergreen
+mode — use them only on fixed-date campaigns.
+
+---
+
 ## Who sets what (important)
 
 There are two jobs. They might both be you, or split with the account owner:

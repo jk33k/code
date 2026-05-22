@@ -29,7 +29,7 @@ edits code per cycle.
 
 ## Current status
 
-- **Version**: 2.0.0 (plugin), pushed on branch `claude/fitness-urgency-script-RtPun`.
+- **Version**: 2.1.0 (plugin), pushed on branch `claude/fitness-urgency-script-RtPun`.
 - **Tests**: 60 PHPUnit tests pass (`FU_Renderer` + `FU_Programs`).
 - **Deploy artifact**: `wp-plugin/dwc-spots-left.zip` (rebuilt on every
   release).
@@ -150,6 +150,18 @@ For `Jun 8 / 15 / 22 / 29` example: `high_demand` = Jun 10–20,
 Ordinal suffix: `Monday, June 8th`, `June 29th`. Implemented in
 `FU_Renderer::format_date()` and `format_date_short()`. JS mirror:
 `formatDate()` and `formatDateShort()` in `fu-refresh.js`.
+
+### Date modes (v2.1.0)
+
+`FU_Renderer::resolve_mode($dates, $evergreen)` selects the mode:
+1 date → `single` (21-day lead gate via `compute_slots($dates,$today,21)`),
+2 → `double`, 3 → `triple`, 4+ → `fixed`, and the `evergreen` flag → `ongoing`.
+Ongoing ignores stored dates and uses `upcoming_mondays(5)` (Monday of the
+current ISO week + the next four) fed into the same `compute_slots`, so there
+are always two upcoming Mondays and never a high-price end. `[fu_countdown]`
+and `[fu_show_phase]` output nothing in ongoing mode. The `evergreen` flag is
+derived in `FU_Programs::sanitize()` from the admin "Schedule" field (the word
+`ongoing`).
 
 ---
 
@@ -320,6 +332,11 @@ prioritized them; ask before starting any of these.
 
 ## Version history
 
+- **2.1.0** — Multi-mode start dates. `FU_Renderer::resolve_mode()` +
+  `upcoming_mondays()`; `compute_slots()` gains an optional `max_lead_days`
+  gate (single mode = 21 days). New "ongoing"/evergreen mode (admin "Schedule"
+  field → `evergreen` flag) shows two rolling Mondays forever and suppresses
+  countdown/phase. JS mirror updated. Additive/backward compatible.
 - **2.0.0** — Multisite-only. Program/date config moved from per-site
   `get_option` to network-wide `get_site_option`/`update_site_option`, managed
   in Network Admin → Settings (super admins, `manage_network_options`). Plugin
