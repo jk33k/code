@@ -8,7 +8,7 @@
  *   2. Live countdown — ticks [fu_countdown] every second via setInterval.
  *
  * fuRefreshData is inlined by PHP (FU_Shortcodes::enqueue_frontend):
- *   { programs: { slug: { dates, highPriceMessage, highPriceSpots } },
+ *   { programs: { slug: { dates, evergreen, highPriceMessage, highPriceSpots } },
  *     tzOffset: <site UTC offset in minutes, e.g. -300 for America/New_York> }
  */
 (function () {
@@ -74,8 +74,44 @@
     return d.toLocaleDateString('en-US', { month: 'long' }) + ' ' + day + ordinal(day);
   }
 
+  // ── Mode resolution (mirrors PHP FU_Renderer::resolve_mode) ────
+  function resolveMode(dates, evergreen) {
+    if (evergreen) return 'ongoing';
+    switch ((dates || []).length) {
+      case 1:  return 'single';
+      case 2:  return 'double';
+      case 3:  return 'triple';
+      default: return 'fixed';
+    }
+  }
+
+  // ── Upcoming Mondays (mirrors PHP FU_Renderer::upcoming_mondays) ─
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function isoOf(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+
+  function upcomingMondays(count, today) {
+    var t0   = today || siteToday();
+    var dow  = t0.getDay();                  // JS: Sun=0..Sat=6
+    var back = (dow === 0) ? 6 : (dow - 1);  // days back to Monday
+    var anchor = new Date(t0.getFullYear(), t0.getMonth(), t0.getDate() - back);
+    var out = [];
+    for (var i = 0; i < count; i++) {
+      out.push(isoOf(new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() + i * 7)));
+    }
+    return out;
+  }
+
+  // ── Per-config effective dates + lead gate (mirrors PHP shortcode resolve) ─
+  function effectiveDates(cfg, today) {
+    if (resolveMode(cfg.dates, cfg.evergreen) === 'ongoing') return upcomingMondays(5, today);
+    return cfg.dates || [];
+  }
+  function maxLeadFor(cfg) {
+    return resolveMode(cfg.dates, cfg.evergreen) === 'single' ? 21 : null;
+  }
+
   // ── Slot computation (mirrors PHP renderer) ────────────────────
-  function computeSlots(dateStrings, programCfg, today) {
+  function computeSlots(dateStrings, programCfg, today, maxLeadDays) {
     var dates = dateStrings.map(parseISODate);
     var t0    = today || siteToday();
 
@@ -89,6 +125,8 @@
     var slot1Date = dates[slot1Index];
     var slot1T    = daysBetween(t0, slot1Date);
     var slot1     = { type: 'date', date: slot1Date, daysUntil: slot1T, spots: spotsForDaysUntil(slot1T) };
+
+    if (maxLeadDays != null && slot1T > maxLeadDays) return [];
 
     var slot2Date = dates[slot1Index + 1];
     if (slot2Date) {
@@ -189,7 +227,7 @@
       var cfg  = data.programs[slug];
       if (!cfg) return;
 
-      var slots = computeSlots(cfg.dates, cfg, today);
+      var slots = computeSlots(effectiveDates(cfg, today), cfg, today, maxLeadFor(cfg));
       var cards = wrapper.querySelectorAll('.fu-card');
       slots.forEach(function (slot, i) {
         if (cards[i]) { cards[i].style.display = ''; applySlotToCard(cards[i], slot, cfg); }
@@ -202,7 +240,7 @@
       var slug = el.getAttribute('data-fu-program') || Object.keys(data.programs)[0];
       var cfg  = data.programs[slug];
       if (!cfg) return;
-      var slots = computeSlots(cfg.dates, cfg, today);
+      var slots = computeSlots(effectiveDates(cfg, today), cfg, today, maxLeadFor(cfg));
       var vars  = computeVars(slots, cfg);
       applyVarEl(el, vars);
     });
@@ -213,7 +251,7 @@
       var cfg       = data.programs[slug];
       var slotIndex = parseInt(el.getAttribute('data-fu-show-if-slot'), 10) - 1;
       if (!cfg) return;
-      var slots = computeSlots(cfg.dates, cfg, today);
+      var slots = computeSlots(effectiveDates(cfg, today), cfg, today, maxLeadFor(cfg));
       el.style.display = slots[slotIndex] ? '' : 'none';
     });
 
@@ -223,6 +261,7 @@
       var cfg   = data.programs[slug];
       if (!cfg) return;
       var phase        = el.getAttribute('data-fu-phase');
+      if (resolveMode(cfg.dates, cfg.evergreen) === 'ongoing') { el.style.display = 'none'; return; }
       var currentPhase = computePhase(cfg.dates, today);
       el.style.display = (currentPhase === phase) ? '' : 'none';
     });
