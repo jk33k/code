@@ -131,7 +131,12 @@ class FU_Programs {
             'default'          => ! empty( $raw['default'] ),
             'high_price_label' => sanitize_text_field( $raw['high_price_label'] ?? 'Start next Monday' ),
             'high_price_spots' => max( 1, (int) ( $raw['high_price_spots'] ?? 2 ) ),
-            'evergreen'        => ( strtolower( trim( (string) ( $raw['schedule'] ?? '' ) ) ) === 'ongoing' ),
+            // Derive from the admin "schedule" field when present; otherwise
+            // preserve an already-sanitized 'evergreen' flag so save() (which
+            // re-sanitizes) stays idempotent.
+            'evergreen'        => array_key_exists( 'schedule', $raw )
+                ? ( strtolower( trim( (string) $raw['schedule'] ) ) === 'ongoing' )
+                : (bool) ( $raw['evergreen'] ?? false ),
         ];
     }
 }

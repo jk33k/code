@@ -67,4 +67,23 @@ final class ProgramsTest extends TestCase {
         $p = FU_Programs::sanitize( [ 'slug' => 'ev2', 'name' => 'Ever2', 'schedule' => '  ONGOING  ', 'dates' => [] ] );
         $this->assertTrue( $p['evergreen'] );
     }
+
+    public function test_sanitize_is_idempotent_for_evergreen(): void {
+        // Re-sanitizing an already-sanitized program (no 'schedule' key) must
+        // preserve the evergreen flag rather than reset it to false.
+        $once  = FU_Programs::sanitize( [ 'slug' => 'ev', 'name' => 'E', 'schedule' => 'ongoing', 'dates' => [] ] );
+        $twice = FU_Programs::sanitize( $once );
+        $this->assertTrue( $twice['evergreen'] );
+    }
+
+    public function test_save_preserves_evergreen_round_trip(): void {
+        // Mirrors FU_Admin::handle_save(): sanitize the form data, then save()
+        // (which sanitizes again internally). The flag must survive.
+        FU_Programs::save(
+            FU_Programs::sanitize( [ 'slug' => 'ev', 'name' => 'Ever', 'schedule' => 'ongoing', 'dates' => [] ] )
+        );
+        $stored = FU_Programs::get( 'ev' );
+        $this->assertNotNull( $stored );
+        $this->assertTrue( $stored['evergreen'], 'evergreen must survive save() re-sanitize' );
+    }
 }

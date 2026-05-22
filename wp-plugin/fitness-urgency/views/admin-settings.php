@@ -25,7 +25,7 @@
             <tr>
               <td><strong><?php echo esc_html( $p['name'] ); ?></strong></td>
               <td><code><?php echo esc_html( $p['slug'] ); ?></code></td>
-              <td><?php echo esc_html( implode( ', ', $p['dates'] ) ); ?></td>
+              <td><?php echo ! empty( $p['evergreen'] ) ? '<em>ongoing (evergreen)</em>' : esc_html( implode( ', ', $p['dates'] ) ); ?></td>
               <td><?php echo ! empty( $p['default'] ) ? '★' : ''; ?></td>
               <td>
                 <a href="<?php echo esc_url( wp_nonce_url( add_query_arg( [ 'page' => 'fitness-urgency', 'edit' => $p['slug'] ], network_admin_url( 'settings.php' ) ), 'fu_edit_' . $p['slug'], '_fu_edit' ) ); ?>">Edit</a>
