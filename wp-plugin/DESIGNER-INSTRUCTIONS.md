@@ -5,8 +5,24 @@ plugin shows the next 1–2 Monday start dates with a spot count that
 shrinks as each date approaches. After the final date passes it switches
 to a "Start next Monday — 2 spots left" high-price message.
 
-**No code editing required.** You manage program dates in the WP admin,
-then drop shortcodes wherever you want the urgency content to appear.
+**No code editing required.** A super admin manages program dates once in
+Network Admin, then designers drop shortcodes wherever urgency content
+should appear.
+
+---
+
+## Where dates are managed (Multisite)
+
+DWC - Spots Left is a **network-activated, multisite-only** plugin. All
+campaign dates are configured **once** in **Network Admin → Settings →
+DWC - Spots Left** by a super admin. Every subsite reads that single shared
+configuration, so the same shortcode renders identically on every funnel.
+
+Subsites have **no settings page**. To use a campaign on a subsite, just place
+its shortcode in the page, e.g. `[fu_card]` for the default campaign or
+`[fu_card program="spring-2026"]` for a specific one. A campaign intended for a
+single subsite is still created at the network level; you simply place its
+shortcode only on that subsite.
 
 ---
 
@@ -43,24 +59,28 @@ in card/inline contexts, `"June 29th"` from `[fu_finaldate]`.
 
 ---
 
-## Step 1 — Install the plugin (once per WP site)
+## Step 1 — Install the plugin (once per WP multisite network)
 
 1. Download **`dwc-spots-left.zip`** from this repo.
-2. WP Admin → **Plugins → Add New → Upload Plugin**.
-3. Choose the ZIP file → **Install Now → Activate**.
+2. **Network Admin** → **Plugins → Add New → Upload Plugin**.
+3. Choose the ZIP file → **Install Now**.
+4. Back on the Network Plugins list, click **Network Activate** next to
+   DWC - Spots Left.
 
-The plugin is now active. You will see **DWC - Spots Left** under the
-Settings menu.
+The plugin is now network-active on every subsite. A super admin will see
+**DWC - Spots Left** under **Network Admin → Settings**. Individual subsites
+have no settings page for this plugin.
 
 ---
 
-## Step 2 — Set up your programs
+## Step 2 — Set up your programs (super admin, Network Admin only)
 
-Each "program" is a named set of four Monday start dates.
+Each "program" is a named set of four Monday start dates. All programs are
+managed centrally by a super admin; subsite editors only place shortcodes.
 
 ### Add a program
 
-1. WP Admin → **Settings → DWC - Spots Left**.
+1. **Network Admin** → **Settings → DWC - Spots Left**.
 2. Fill in the **Add Program** form on the right:
 
    | Field | What to enter |
@@ -397,12 +417,13 @@ If you prefer to build the card layout natively in Elementor:
 ## Troubleshooting
 
 **Shortcode shows as raw text like `[fu_card]`.**
-The plugin is not active. Go to WP Admin → Plugins and confirm
-DWC - Spots Left is active.
+The plugin is not network-active. A super admin should go to Network Admin →
+Plugins and confirm DWC - Spots Left is network-activated.
 
 **Shortcode outputs nothing (blank space).**
-The program has no dates saved. Go to Settings → DWC - Spots Left,
-edit the program, and add the four Monday start dates.
+The program has no dates saved. A super admin should go to Network Admin →
+Settings → DWC - Spots Left, edit the program, and add the four Monday start
+dates.
 
 **Dates are showing but they look wrong.**
 Check that WP's timezone is set correctly: WP Admin → Settings → General
@@ -459,8 +480,8 @@ is the one after it.
 **`phase`** — `"high_demand"` or `"final_week"`. See *Phase transitions*
 above for the exact day-by-day windows.
 
-**`program`** — the slug of the program configured in Settings → Fitness
-Urgency. Omit to use the default program.
+**`program`** — the slug of the program configured in Network Admin →
+Settings → DWC - Spots Left. Omit to use the default program.
 
 **`class`** — extra CSS class(es) added to the rendered element. Useful
 for targeted styling without touching the plugin's own CSS.

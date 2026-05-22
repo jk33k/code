@@ -28,8 +28,8 @@ edits code per cycle.
 
 ## Current status
 
-- **Version**: 1.1.0 (plugin), pushed on branch `claude/fitness-urgency-script-RtPun`.
-- **Tests**: 53 PHPUnit tests pass against `FU_Renderer`.
+- **Version**: 2.0.0 (plugin), pushed on branch `claude/fitness-urgency-script-RtPun`.
+- **Tests**: 60 PHPUnit tests pass (`FU_Renderer` + `FU_Programs`).
 - **Deploy artifact**: `wp-plugin/dwc-spots-left.zip` (rebuilt on every
   release).
 - **Installed**: User has installed and confirmed v1.1.0 works on their
@@ -56,7 +56,7 @@ edits code per cycle.
         ├── composer.json, phpunit.xml
         ├── includes/
         │   ├── class-fu-plugin.php       (top-level init)
-        │   ├── class-fu-programs.php     (CRUD on the fu_programs option)
+        │   ├── class-fu-programs.php     (CRUD on the fu_programs network option via get_site_option/update_site_option)
         │   ├── class-fu-renderer.php     (pure-PHP date/spots/phase logic — no WP deps; testable)
         │   ├── class-fu-admin.php        (admin menu + form handlers)
         │   └── class-fu-shortcodes.php   (registers all shortcodes; enqueues frontend assets)
@@ -69,7 +69,7 @@ edits code per cycle.
         │   └── js/fu-refresh.js          (midnight rollover + countdown ticker)
         └── tests/
             ├── bootstrap.php
-            └── RendererTest.php          (53 tests)
+            └── RendererTest.php          (60 tests: FU_Renderer + FU_Programs)
 ```
 
 ---
@@ -83,7 +83,7 @@ display-only.
 |---|---|---|
 | Plugin display name | `DWC - Spots Left` | What the user wants people to see |
 | Folder / main file | `fitness-urgency/fitness-urgency.php` | WP plugin slug; renaming would orphan the install |
-| WP option key | `fu_programs` | Renaming would lose saved program data |
+| WP network option key | `fu_programs` | Renaming would lose saved program data (stored in `wp_sitemeta` via `get_site_option`/`update_site_option`) |
 | PHP classes | `FU_Renderer`, `FU_Programs`, … | Internal |
 | Shortcodes | `fu_card`, `fu_startdate`, … | Already in customer pages |
 | CSS classes | `.fu-urgency`, `.fu-card`, `.fu-cd-days`, … | Designer's custom CSS targets these |
@@ -168,7 +168,7 @@ Ordinal suffix: `Monday, June 8th`, `June 29th`. Implemented in
 | `[fu_show_phase phase="high_demand\|final_week"]…[/]` | `phase` | `program` | Wrapper, hidden when phase inactive |
 | `[fu_countdown]` | — | `program`, `class` | Live D/H/M/S countdown |
 
-`program` defaults to whichever program is flagged "default" in WP admin.
+`program` defaults to whichever program is flagged "default" in Network Admin → Settings → DWC - Spots Left.
 
 ---
 
@@ -194,11 +194,11 @@ Ordinal suffix: `Monday, June 8th`, `June 29th`. Implemented in
      target Unix timestamp is in the DOM (computed by PHP).
 3. **Test suite** (`tests/RendererTest.php`): exercises `FU_Renderer` in
    isolation with `FU_TESTING` defined so `class-fu-renderer.php` doesn't
-   require WP. 53 tests, 220 assertions.
+   require WP. 60 tests total (`FU_Renderer` + `FU_Programs`).
 
 `FU_Renderer` has zero WP dependencies — that's intentional. All WP-aware
-code (options, timezone, shortcode atts, enqueueing) lives in the other
-classes.
+code (network options via `get_site_option`/`update_site_option`, timezone,
+shortcode atts, enqueueing) lives in the other classes.
 
 ---
 
@@ -218,8 +218,8 @@ cd wp-plugin/fitness-urgency
 ./vendor/bin/phpunit tests/
 ```
 
-Should print `OK (53 tests, 220 assertions)`. **Update tests whenever
-`FU_Renderer` behavior changes.** The slot data provider in
+Should print `OK (60 tests, …)`. **Update tests whenever
+`FU_Renderer` or `FU_Programs` behavior changes.** The slot data provider in
 `RendererTest::slotProvider()` is the canonical day-by-day spec.
 
 ### Rebuild the installable ZIP
@@ -272,8 +272,11 @@ Update both:
   rebuilds today's date using `data.tzOffset` from PHP. Subtle but the
   existing code is correct; don't "simplify" it without re-reading the
   comments.
-- **WP multisite installs** require Network Admin → Plugins → Add New.
-  Site-level admins won't see "Add New". Documented in the designer guide.
+- **This plugin requires WP multisite** and must be network-activated by a
+  super admin via Network Admin → Plugins. It will not activate on a
+  single-site install. All program/date configuration lives in
+  Network Admin → Settings → DWC - Spots Left (super admins only).
+  Subsites have no settings page. Documented in the designer guide.
 - **Shortcodes on raw HTML pages** (Elementor HTML widget, etc.) need to
   be inside a context where `do_shortcode()` runs. WP normally does this
   for post content; for custom widgets, designers may need to use
@@ -320,6 +323,13 @@ prioritized them; ask before starting any of these.
 
 ## Version history
 
+- **2.0.0** — Multisite-only. Program/date config moved from per-site
+  `get_option` to network-wide `get_site_option`/`update_site_option`, managed
+  in Network Admin → Settings (super admins, `manage_network_options`). Plugin
+  header marked `Network: true`; activation blocked on non-multisite. Render
+  path unchanged so shortcodes stay identical across subsites. Added
+  `FU_Programs` per-request cache + unit tests; folded in audit fixes (output
+  escaping, timezone/date try-catch). 53 → 60 tests.
 - **1.1.0** — Ordinal date format ("Monday, June 8th"). New shortcodes:
   `[fu_finaldate]`, `[fu_show_phase]`, `[fu_countdown]`. Phase logic in
   `FU_Renderer` (`compute_phase`, `countdown_target_timestamp`). Live
