@@ -116,6 +116,45 @@ class FU_Renderer {
         return $vars;
     }
 
+    /**
+     * Resolve the display mode from stored config.
+     *   evergreen        -> 'ongoing'
+     *   1 date           -> 'single'
+     *   2 dates          -> 'double'
+     *   3 dates          -> 'triple'
+     *   0 or 4+ dates    -> 'fixed'
+     */
+    public static function resolve_mode( array $dates, bool $evergreen ): string {
+        if ( $evergreen ) {
+            return 'ongoing';
+        }
+        switch ( count( $dates ) ) {
+            case 1:  return 'single';
+            case 2:  return 'double';
+            case 3:  return 'triple';
+            default: return 'fixed';
+        }
+    }
+
+    /**
+     * Generate `count` consecutive Monday ISO dates, starting from the Monday
+     * on or before `today` (Monday of the current ISO week). Used by ongoing
+     * mode so new Mondays roll in indefinitely.
+     *
+     * @return string[] ISO 'YYYY-MM-DD'
+     */
+    public function upcoming_mondays( int $count, ?\DateTimeInterface $today = null ): array {
+        $today  = $this->start_of_day( $today ?? new \DateTime( 'now', $this->tz ) );
+        $dow    = (int) $today->format( 'N' );          // Mon=1 … Sun=7
+        $anchor = $today->modify( '-' . ( $dow - 1 ) . ' days' );
+
+        $out = [];
+        for ( $i = 0; $i < $count; $i++ ) {
+            $out[] = $anchor->modify( '+' . ( $i * 7 ) . ' days' )->format( 'Y-m-d' );
+        }
+        return $out;
+    }
+
     // ----------------------------------------------------------------
     // Spots table
     // ----------------------------------------------------------------

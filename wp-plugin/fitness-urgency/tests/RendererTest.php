@@ -254,4 +254,38 @@ class RendererTest extends TestCase {
         $this->expectException( \InvalidArgumentException::class );
         $r->parse_iso_date( 'garbage' );
     }
+
+    // ----------------------------------------------------------------
+    // Multi-mode (v2.1.0): resolve_mode + upcoming_mondays
+    // ----------------------------------------------------------------
+
+    public function test_resolve_mode(): void {
+        $this->assertSame( 'ongoing', FU_Renderer::resolve_mode( [], true ) );
+        $this->assertSame( 'ongoing', FU_Renderer::resolve_mode( [ '2026-06-08' ], true ) ); // evergreen wins
+        $this->assertSame( 'single',  FU_Renderer::resolve_mode( [ '2026-06-08' ], false ) );
+        $this->assertSame( 'double',  FU_Renderer::resolve_mode( [ 'a', 'b' ], false ) );
+        $this->assertSame( 'triple',  FU_Renderer::resolve_mode( [ 'a', 'b', 'c' ], false ) );
+        $this->assertSame( 'fixed',   FU_Renderer::resolve_mode( [ 'a', 'b', 'c', 'd' ], false ) );
+        $this->assertSame( 'fixed',   FU_Renderer::resolve_mode( [], false ) );
+    }
+
+    public function test_upcoming_mondays_from_friday(): void {
+        // Fri 2026-05-22; Monday of that ISO week is Mon 2026-05-18.
+        $out = $this->r->upcoming_mondays( 5, $this->r->parse_iso_date( '2026-05-22' ) );
+        $this->assertSame(
+            [ '2026-05-18', '2026-05-25', '2026-06-01', '2026-06-08', '2026-06-15' ],
+            $out
+        );
+    }
+
+    public function test_upcoming_mondays_from_sunday(): void {
+        // Sun 2026-05-24 belongs to the ISO week starting Mon 2026-05-18.
+        $out = $this->r->upcoming_mondays( 3, $this->r->parse_iso_date( '2026-05-24' ) );
+        $this->assertSame( [ '2026-05-18', '2026-05-25', '2026-06-01' ], $out );
+    }
+
+    public function test_upcoming_mondays_from_monday(): void {
+        $out = $this->r->upcoming_mondays( 2, $this->r->parse_iso_date( '2026-05-25' ) );
+        $this->assertSame( [ '2026-05-25', '2026-06-01' ], $out );
+    }
 }
