@@ -3,25 +3,28 @@ defined( 'ABSPATH' ) || exit;
 
 class FU_Admin {
 
+    private static string $hook = '';
+
     public static function init(): void {
-        add_action( 'admin_menu',            [ __CLASS__, 'add_menu' ] );
-        add_action( 'admin_post_fu_save',    [ __CLASS__, 'handle_save' ] );
-        add_action( 'admin_post_fu_delete',  [ __CLASS__, 'handle_delete' ] );
-        add_action( 'admin_enqueue_scripts', [ __CLASS__, 'enqueue_scripts' ] );
+        add_action( 'network_admin_menu',           [ __CLASS__, 'add_menu' ] );
+        add_action( 'network_admin_edit_fu_save',   [ __CLASS__, 'handle_save' ] );
+        add_action( 'network_admin_edit_fu_delete', [ __CLASS__, 'handle_delete' ] );
+        add_action( 'admin_enqueue_scripts',        [ __CLASS__, 'enqueue_scripts' ] );
     }
 
     public static function add_menu(): void {
-        add_options_page(
+        self::$hook = (string) add_submenu_page(
+            'settings.php',
             'DWC - Spots Left',
             'DWC - Spots Left',
-            'manage_options',
+            'manage_network_options',
             'fitness-urgency',
             [ __CLASS__, 'render_page' ]
         );
     }
 
     public static function enqueue_scripts( string $hook ): void {
-        if ( $hook !== 'settings_page_fitness-urgency' ) return;
+        if ( $hook !== self::$hook ) return;
         wp_enqueue_style( 'fu-admin', FU_URL . 'assets/css/fu-admin.css', [], FU_VERSION );
     }
 
@@ -30,11 +33,24 @@ class FU_Admin {
     // ----------------------------------------------------------------
 
     public static function render_page(): void {
-        if ( ! current_user_can( 'manage_options' ) ) return;
-        $programs  = FU_Programs::all();
+        if ( ! current_user_can( 'manage_network_options' ) ) return;
+
         $edit_slug = sanitize_key( $_GET['edit'] ?? '' );
-        $editing   = $edit_slug ? FU_Programs::get( $edit_slug ) : null;
+        if ( $edit_slug && ! wp_verify_nonce( wp_unslash( $_GET['_fu_edit'] ?? '' ), 'fu_edit_' . $edit_slug ) ) {
+            $edit_slug = '';
+        }
+
+        $programs = FU_Programs::all();
+        $editing  = $edit_slug ? FU_Programs::get( $edit_slug ) : null;
         require FU_DIR . 'views/admin-settings.php';
+    }
+
+    /** Network-admin settings URL with optional extra query args. */
+    private static function page_url( array $args = [] ): string {
+        return add_query_arg(
+            array_merge( [ 'page' => 'fitness-urgency' ], $args ),
+            network_admin_url( 'settings.php' )
+        );
     }
 
     // ----------------------------------------------------------------
@@ -42,7 +58,7 @@ class FU_Admin {
     // ----------------------------------------------------------------
 
     public static function handle_save(): void {
-        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Unauthorised' );
+        if ( ! current_user_can( 'manage_network_options' ) ) wp_die( 'Unauthorised' );
         check_admin_referer( 'fu_save_program' );
 
         $raw = [
@@ -56,21 +72,21 @@ class FU_Admin {
 
         $result = FU_Programs::sanitize( $raw );
         if ( is_wp_error( $result ) ) {
-            wp_redirect( add_query_arg( [ 'page' => 'fitness-urgency', 'error' => urlencode( $result->get_error_message() ) ], admin_url( 'options-general.php' ) ) );
+            wp_safe_redirect( self::page_url( [ 'error' => rawurlencode( $result->get_error_message() ) ] ) );
             exit;
         }
 
         FU_Programs::save( $result );
-        wp_redirect( add_query_arg( [ 'page' => 'fitness-urgency', 'saved' => 1 ], admin_url( 'options-general.php' ) ) );
+        wp_safe_redirect( self::page_url( [ 'saved' => 1 ] ) );
         exit;
     }
 
     public static function handle_delete(): void {
-        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Unauthorised' );
+        if ( ! current_user_can( 'manage_network_options' ) ) wp_die( 'Unauthorised' );
         $slug = sanitize_key( $_GET['slug'] ?? '' );
         check_admin_referer( 'fu_delete_' . $slug );
         FU_Programs::delete( $slug );
-        wp_redirect( add_query_arg( [ 'page' => 'fitness-urgency', 'deleted' => 1 ], admin_url( 'options-general.php' ) ) );
+        wp_safe_redirect( self::page_url( [ 'deleted' => 1 ] ) );
         exit;
     }
 }
