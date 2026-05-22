@@ -2,17 +2,18 @@
 /**
  * Plugin Name:       DWC - Spots Left
  * Description:       Automatic "spots left" countdown for DWC program landing pages. Shows the next 1–2 Monday start dates with a shrinking spot count, then switches to a high-price message after the final date passes. Supports multiple programs via shortcodes.
- * Version:           1.1.0
+ * Version:           2.0.0
  * Requires at least: 5.5
  * Requires PHP:      7.4
  * Author:            Your Name
  * License:           GPL-2.0-or-later
  * Text Domain:       fitness-urgency
+ * Network:           true
  */
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'FU_VERSION',  '1.1.0' );
+define( 'FU_VERSION',  '2.0.0' );
 define( 'FU_DIR',      plugin_dir_path( __FILE__ ) );
 define( 'FU_URL',      plugin_dir_url( __FILE__ ) );
 define( 'FU_BASENAME', plugin_basename( __FILE__ ) );
