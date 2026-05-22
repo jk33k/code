@@ -35,7 +35,7 @@ class FU_Admin {
     public static function render_page(): void {
         if ( ! current_user_can( 'manage_network_options' ) ) return;
 
-        $edit_slug = sanitize_key( $_GET['edit'] ?? '' );
+        $edit_slug = sanitize_key( wp_unslash( $_GET['edit'] ?? '' ) );
         if ( $edit_slug && ! wp_verify_nonce( wp_unslash( $_GET['_fu_edit'] ?? '' ), 'fu_edit_' . $edit_slug ) ) {
             $edit_slug = '';
         }
@@ -83,7 +83,7 @@ class FU_Admin {
 
     public static function handle_delete(): void {
         if ( ! current_user_can( 'manage_network_options' ) ) wp_die( 'Unauthorised' );
-        $slug = sanitize_key( $_GET['slug'] ?? '' );
+        $slug = sanitize_key( wp_unslash( $_GET['slug'] ?? '' ) );
         check_admin_referer( 'fu_delete_' . $slug );
         FU_Programs::delete( $slug );
         wp_safe_redirect( self::page_url( [ 'deleted' => 1 ] ) );

@@ -4,7 +4,7 @@
 
   <?php if ( ! empty( $_GET['saved'] ) )   : ?><div class="notice notice-success is-dismissible"><p>Program saved.</p></div><?php endif; ?>
   <?php if ( ! empty( $_GET['deleted'] ) ) : ?><div class="notice notice-success is-dismissible"><p>Program deleted.</p></div><?php endif; ?>
-  <?php if ( ! empty( $_GET['error'] ) )   : ?><div class="notice notice-error"><p><?php echo esc_html( urldecode( $_GET['error'] ) ); ?></p></div><?php endif; ?>
+  <?php if ( ! empty( $_GET['error'] ) )   : ?><div class="notice notice-error"><p><?php echo esc_html( rawurldecode( wp_unslash( $_GET['error'] ) ) ); ?></p></div><?php endif; ?>
 
   <div class="fu-layout">
 
