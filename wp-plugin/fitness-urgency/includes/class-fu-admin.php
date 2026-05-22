@@ -64,6 +64,7 @@ class FU_Admin {
         $raw = [
             'slug'             => sanitize_key( $_POST['slug'] ?? '' ),
             'name'             => sanitize_text_field( $_POST['name'] ?? '' ),
+            'schedule'         => sanitize_text_field( wp_unslash( $_POST['schedule'] ?? '' ) ),
             'dates'            => array_filter( array_map( 'sanitize_text_field', (array) ( $_POST['dates'] ?? [] ) ) ),
             'default'          => isset( $_POST['default'] ),
             'high_price_label' => sanitize_text_field( $_POST['high_price_label'] ?? 'Start next Monday' ),

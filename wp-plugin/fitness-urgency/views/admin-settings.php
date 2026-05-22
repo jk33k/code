@@ -71,6 +71,21 @@
             </td>
           </tr>
           <tr>
+            <th><label for="fu-schedule">Schedule</label></th>
+            <td>
+              <input id="fu-schedule" name="schedule" type="text" class="regular-text"
+                     value="<?php echo esc_attr( ! empty( $editing['evergreen'] ) ? 'ongoing' : '' ); ?>"
+                     placeholder="(leave blank to use the dates below)">
+              <p class="description">
+                Type <code>ongoing</code> for <strong>evergreen mode</strong> — the plugin shows the
+                next two upcoming Mondays automatically and rolls forward forever (the date pickers
+                below are ignored). Otherwise leave this blank and enter dates below:
+                <strong>1</strong> date = single (starts 21 days out),
+                <strong>2&ndash;3</strong> = that many dates, <strong>4+</strong> = the standard cycle.
+              </p>
+            </td>
+          </tr>
+          <tr>
             <th>Start dates</th>
             <td>
               <div id="fu-dates-list">
