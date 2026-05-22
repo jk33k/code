@@ -237,4 +237,21 @@ class RendererTest extends TestCase {
         $expected = ( new \DateTimeImmutable( '2026-06-28 00:00:00', new \DateTimeZone( 'America/New_York' ) ) )->getTimestamp();
         $this->assertSame( $expected, $ts );
     }
+
+    // ----------------------------------------------------------------
+    // Fallback / guard tests (Task 7 — audit hygiene)
+    // ----------------------------------------------------------------
+
+    public function test_invalid_timezone_falls_back_to_utc(): void {
+        $r = new FU_Renderer( [ 'timezone' => 'Not/AZone' ] );
+        // Should not throw; a valid date should still parse.
+        $d = $r->parse_iso_date( '2026-06-08' );
+        $this->assertSame( '2026-06-08', $d->format( 'Y-m-d' ) );
+    }
+
+    public function test_malformed_date_throws_invalid_argument(): void {
+        $r = new FU_Renderer( [ 'timezone' => 'UTC' ] );
+        $this->expectException( \InvalidArgumentException::class );
+        $r->parse_iso_date( 'garbage' );
+    }
 }

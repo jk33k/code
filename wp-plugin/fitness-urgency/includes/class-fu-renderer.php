@@ -25,7 +25,11 @@ class FU_Renderer {
         $this->high_price_spots   = $opts['high_price_spots']   ?? 2;
         $this->locale             = $opts['locale']             ?? 'en_US';
         $tz_string                = $opts['timezone']           ?? 'UTC';
-        $this->tz                 = new \DateTimeZone( $tz_string );
+        try {
+            $this->tz = new \DateTimeZone( $tz_string );
+        } catch ( \Exception $e ) {
+            $this->tz = new \DateTimeZone( 'UTC' );
+        }
     }
 
     // ----------------------------------------------------------------
@@ -138,12 +142,18 @@ class FU_Renderer {
     // ----------------------------------------------------------------
 
     public function parse_iso_date( string $s ): \DateTimeImmutable {
-        [ $y, $m, $d ] = explode( '-', $s );
-        return \DateTimeImmutable::createFromFormat(
+        if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $s ) ) {
+            throw new \InvalidArgumentException( "Invalid ISO date: {$s}" );
+        }
+        $dt = \DateTimeImmutable::createFromFormat(
             'Y-m-d H:i:s',
-            "$y-$m-$d 00:00:00",
+            "{$s} 00:00:00",
             $this->tz
         );
+        if ( ! $dt ) {
+            throw new \InvalidArgumentException( "Unparseable ISO date: {$s}" );
+        }
+        return $dt;
     }
 
     public function start_of_day( \DateTimeInterface $dt ): \DateTimeImmutable {

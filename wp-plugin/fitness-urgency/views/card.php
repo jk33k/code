@@ -30,7 +30,7 @@ $extra_class = sanitize_html_class( $atts['class'] ?? '' );
       <?php if ( $is_high_price ) :
         echo esc_html( $renderer->spots_label( $renderer->high_price_spots ) );
       elseif ( $is_sold_out ) :
-        echo 'SOLD OUT';
+        echo esc_html( 'SOLD OUT' );
       else :
         echo esc_html( $renderer->spots_label( $slot['spots']['count'] ) );
       endif; ?>

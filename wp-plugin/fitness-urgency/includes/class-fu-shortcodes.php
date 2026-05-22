@@ -191,14 +191,14 @@ class FU_Shortcodes {
         $classes = array_filter( [ 'fu-countdown', sanitize_html_class( $atts['class'] ) ] );
 
         return sprintf(
-            '<span class="%s" data-fu-countdown="%d" data-fu-program="%s">'
+            '<span class="%s" data-fu-countdown="%s" data-fu-program="%s">'
                 . '<span class="fu-cd-days">%02d</span><span class="fu-cd-label">d </span>'
                 . '<span class="fu-cd-hours">%02d</span><span class="fu-cd-label">h </span>'
                 . '<span class="fu-cd-minutes">%02d</span><span class="fu-cd-label">m </span>'
                 . '<span class="fu-cd-seconds">%02d</span><span class="fu-cd-label">s</span>'
             . '</span>',
             esc_attr( implode( ' ', $classes ) ),
-            $target_ts,
+            esc_attr( (string) $target_ts ),
             esc_attr( $program_slug ),
             $days,
             $hours,
