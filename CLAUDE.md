@@ -9,16 +9,17 @@ the project is, where it stands, and how to develop it further.
 ## What this repository is
 
 A "spots left" urgency countdown for landing pages selling a recurring
-fitness program with weekly Monday start dates. Two implementations share
-the same spec:
+fitness program with weekly Monday start dates.
 
-1. **WordPress plugin** at `wp-plugin/fitness-urgency/` — production target.
-   Plugin display name: **DWC - Spots Left**. Folder/file names retain the
-   legacy `fitness-urgency` slug so existing installs aren't broken.
-2. **Standalone JS at the repo root** (`fitness-urgency.js`, `demo.html`,
-   `elementor-snippet.html`) — the original CDN-hosted version, kept for
-   reference. The WP plugin is the active codebase; new work should go
-   there unless the user asks otherwise.
+The product is a **WordPress multisite plugin** at
+`wp-plugin/fitness-urgency/`. Plugin display name: **DWC - Spots Left**.
+Folder/file names retain the legacy `fitness-urgency` slug so existing
+installs aren't broken.
+
+(An earlier standalone, CDN-hosted JS version once lived at the repo root —
+`fitness-urgency.js`, `demo.html`, `elementor-snippet.html`, two Node test
+files, and a root designer guide. It was fully superseded by the plugin and
+removed on 2026-05-22; recoverable from git history if ever needed.)
 
 The user is a non-technical operator. Their designer drops shortcodes into
 Elementor / Gutenberg pages; the user manages dates in WP admin. Nobody
@@ -42,14 +43,10 @@ edits code per cycle.
 ```
 /                                         ← repo root
 ├── CLAUDE.md                             (this file)
-├── DESIGNER-INSTRUCTIONS.md              (legacy CDN-version designer guide)
-├── demo.html                             (legacy CDN demo)
-├── elementor-snippet.html                (legacy CDN drop-in)
-├── fitness-urgency.js                    (legacy CDN script)
-├── test-fitness-urgency.js               (legacy 32-case spec test, Node)
-├── test-fitness-urgency-vars.js          (legacy 6-case variable test)
+├── docs/superpowers/                     (design specs + implementation plans)
 └── wp-plugin/
-    ├── DESIGNER-INSTRUCTIONS.md          (active designer guide — keep in sync with code)
+    ├── DESIGNER-MANUAL.md                (easy-start designer guide)
+    ├── DESIGNER-INSTRUCTIONS.md          (full designer reference — keep in sync with code)
     ├── dwc-spots-left.zip                (installable plugin ZIP)
     └── fitness-urgency/
         ├── fitness-urgency.php           (plugin header, autoloader, bootstrap)
