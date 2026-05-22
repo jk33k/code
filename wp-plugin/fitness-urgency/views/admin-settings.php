@@ -28,9 +28,9 @@
               <td><?php echo esc_html( implode( ', ', $p['dates'] ) ); ?></td>
               <td><?php echo ! empty( $p['default'] ) ? '★' : ''; ?></td>
               <td>
-                <a href="<?php echo esc_url( add_query_arg( [ 'page' => 'fitness-urgency', 'edit' => $p['slug'] ], admin_url( 'options-general.php' ) ) ); ?>">Edit</a>
+                <a href="<?php echo esc_url( wp_nonce_url( add_query_arg( [ 'page' => 'fitness-urgency', 'edit' => $p['slug'] ], network_admin_url( 'settings.php' ) ), 'fu_edit_' . $p['slug'], '_fu_edit' ) ); ?>">Edit</a>
                 &nbsp;|&nbsp;
-                <a href="<?php echo esc_url( wp_nonce_url( add_query_arg( [ 'action' => 'fu_delete', 'slug' => $p['slug'] ], admin_url( 'admin-post.php' ) ), 'fu_delete_' . $p['slug'] ) ); ?>"
+                <a href="<?php echo esc_url( wp_nonce_url( add_query_arg( [ 'action' => 'fu_delete', 'slug' => $p['slug'] ], network_admin_url( 'edit.php' ) ), 'fu_delete_' . $p['slug'] ) ); ?>"
                    onclick="return confirm('Delete \'<?php echo esc_js( $p['name'] ); ?>\'?');"
                    style="color:#b32d2e;">Delete</a>
               </td>
@@ -45,9 +45,8 @@
     <div class="fu-card">
       <h2><?php echo $editing ? 'Edit Program: ' . esc_html( $editing['name'] ) : 'Add Program'; ?></h2>
 
-      <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+      <form method="post" action="<?php echo esc_url( network_admin_url( 'edit.php?action=fu_save' ) ); ?>">
         <?php wp_nonce_field( 'fu_save_program' ); ?>
-        <input type="hidden" name="action" value="fu_save">
 
         <table class="form-table">
           <tr>
@@ -124,7 +123,7 @@
             <?php echo $editing ? 'Save changes' : 'Add program'; ?>
           </button>
           <?php if ( $editing ) : ?>
-          <a href="<?php echo esc_url( add_query_arg( 'page', 'fitness-urgency', admin_url( 'options-general.php' ) ) ); ?>"
+          <a href="<?php echo esc_url( add_query_arg( 'page', 'fitness-urgency', network_admin_url( 'settings.php' ) ) ); ?>"
              class="button">Cancel</a>
           <?php endif; ?>
         </p>
