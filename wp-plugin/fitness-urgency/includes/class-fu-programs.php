@@ -4,6 +4,7 @@ defined( 'ABSPATH' ) || exit;
 class FU_Programs {
 
     private static string $option = 'fu_programs';
+    private static ?array $cache  = null;
 
     public static function init(): void {
         // Nothing to hook at boot — data is read on demand.
@@ -15,7 +16,16 @@ class FU_Programs {
 
     /** @return array<int, array> */
     public static function all(): array {
-        return get_option( self::$option, [] );
+        if ( self::$cache !== null ) {
+            return self::$cache;
+        }
+        self::$cache = get_site_option( self::$option, [] );
+        return self::$cache;
+    }
+
+    /** Reset the per-request cache (call after external writes / in tests). */
+    public static function flush_cache(): void {
+        self::$cache = null;
     }
 
     public static function get( string $slug ): ?array {
@@ -67,7 +77,9 @@ class FU_Programs {
             unset( $p );
         }
 
-        return update_option( self::$option, $all );
+        $ok = update_site_option( self::$option, $all );
+        self::$cache = $all;
+        return $ok;
     }
 
     public static function delete( string $slug ): bool {
@@ -80,7 +92,9 @@ class FU_Programs {
             $all[0]['default'] = true;
         }
 
-        return update_option( self::$option, $all );
+        $ok = update_site_option( self::$option, $all );
+        self::$cache = $all;
+        return $ok;
     }
 
     public static function set_default( string $slug ): bool {
