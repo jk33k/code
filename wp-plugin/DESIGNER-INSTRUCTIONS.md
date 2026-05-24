@@ -210,6 +210,11 @@ If you write surrounding copy for the second date, wrap it in
 Without the wrapper, orphaned text like "Or join the following week:"
 would remain visible even when the shortcodes inside produce nothing.
 
+> **Spacing (v2.1.1):** when a `[fu_show_if_slot]` or `[fu_show_phase]` wrapper
+> is inactive it now outputs **nothing at all** (no hidden element), so it
+> reserves zero layout space. You no longer need CSS to collapse an empty gap
+> where an inactive banner sits.
+
 ---
 
 ### Approach C — Phase banners and live countdown

@@ -29,7 +29,7 @@ edits code per cycle.
 
 ## Current status
 
-- **Version**: 2.1.0 (plugin), pushed on branch `claude/fitness-urgency-script-RtPun`.
+- **Version**: 2.1.1 (plugin), pushed on branch `claude/fitness-urgency-script-RtPun`.
 - **Tests**: 72 PHPUnit tests pass (`FU_Renderer` + `FU_Programs`).
 - **Deploy artifact**: `wp-plugin/dwc-spots-left.zip` (rebuilt on every
   release).
@@ -333,6 +333,14 @@ prioritized them; ask before starting any of these.
 
 ## Version history
 
+- **2.1.1** — `[fu_show_phase]` and `[fu_show_if_slot]` now output an empty
+  string when inactive instead of a hidden `<div style="display:none">`, so the
+  wrappers reserve zero layout space (fixes designer complaint about leftover
+  gaps / empty `<p>` from wpautop). The active markup is unchanged. Tradeoff:
+  a wrapper that activates overnight appears on the next page load rather than
+  via the JS midnight reveal (acceptable — landing pages already refresh cache
+  daily). Reverses the v1.1.0 "always render a wrapper" choice for the inactive
+  case only. No shortcode/attribute/CSS changes; deployed pages need no rework.
 - **2.1.0** — Multi-mode start dates. `FU_Renderer::resolve_mode()` +
   `upcoming_mondays()`; `compute_slots()` gains an optional `max_lead_days`
   gate (single mode = 21 days). New "ongoing"/evergreen mode (admin "Schedule"

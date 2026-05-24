@@ -99,15 +99,17 @@ class FU_Shortcodes {
         [ $renderer, $slots ] = self::resolve( $atts );
         if ( ! $renderer ) return '';
 
-        $slot_index   = max( 1, (int) $atts['slot'] ) - 1;
-        $visible      = isset( $slots[ $slot_index ] );
+        $slot_index = max( 1, (int) $atts['slot'] ) - 1;
+        // Nothing to show for this slot today: emit no markup at all so the
+        // wrapper reserves zero layout space (rather than a hidden <div>).
+        if ( ! isset( $slots[ $slot_index ] ) ) return '';
+
         $program_slug = $atts['program'] ?: ( FU_Programs::default()['slug'] ?? '' );
 
         return sprintf(
-            '<div data-fu-show-if-slot="%d" data-fu-program="%s" style="%s">%s</div>',
+            '<div data-fu-show-if-slot="%d" data-fu-program="%s">%s</div>',
             max( 1, (int) $atts['slot'] ),
             esc_attr( $program_slug ),
-            $visible ? '' : 'display:none',
             do_shortcode( $content )
         );
     }
@@ -153,14 +155,16 @@ class FU_Shortcodes {
 
         $renderer      = new FU_Renderer( [ 'timezone' => wp_timezone_string() ] );
         $current_phase = $renderer->compute_phase( $program['dates'] );
-        $visible       = ( $current_phase === $atts['phase'] );
-        $program_slug  = $atts['program'] ?: ( $program['slug'] ?? '' );
+        // Phase inactive today: emit no markup at all so the wrapper reserves
+        // zero layout space (rather than a hidden <div>).
+        if ( $current_phase !== $atts['phase'] ) return '';
+
+        $program_slug = $atts['program'] ?: ( $program['slug'] ?? '' );
 
         return sprintf(
-            '<div data-fu-phase="%s" data-fu-program="%s" style="%s">%s</div>',
+            '<div data-fu-phase="%s" data-fu-program="%s">%s</div>',
             esc_attr( $atts['phase'] ),
             esc_attr( $program_slug ),
-            $visible ? '' : 'display:none',
             do_shortcode( $content )
         );
     }
