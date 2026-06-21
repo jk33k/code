@@ -266,6 +266,8 @@ class RendererTest extends TestCase {
         $this->assertSame( 'double',  FU_Renderer::resolve_mode( [ 'a', 'b' ], false ) );
         $this->assertSame( 'triple',  FU_Renderer::resolve_mode( [ 'a', 'b', 'c' ], false ) );
         $this->assertSame( 'fixed',   FU_Renderer::resolve_mode( [ 'a', 'b', 'c', 'd' ], false ) );
+        $this->assertSame( 'fixed',   FU_Renderer::resolve_mode( [ 'a', 'b', 'c', 'd', 'e' ], false ) );
+        $this->assertSame( 'fixed',   FU_Renderer::resolve_mode( [ 'a', 'b', 'c', 'd', 'e', 'f' ], false ) );
         $this->assertSame( 'fixed',   FU_Renderer::resolve_mode( [], false ) );
     }
 
@@ -334,5 +336,74 @@ class RendererTest extends TestCase {
             $this->assertSame( 'date', $slots[0]['type'], "slot1 date on $iso" );
             $this->assertSame( 'date', $slots[1]['type'], "slot2 date on $iso" );
         }
+    }
+
+    // ----------------------------------------------------------------
+    // Five- and six-date cycles (v2.1.2): same 'fixed' rolling logic,
+    // just with one or two extra rollover events before the high-price end.
+    // ----------------------------------------------------------------
+
+    public function test_slot_logic_rolls_through_five_dates(): void {
+        $dates = [ '2026-06-08', '2026-06-15', '2026-06-22', '2026-06-29', '2026-07-06' ];
+
+        $cases = [
+            // [today, slot1 date or 'hp', slot1 spots, slot2 date or 'hp' or null, slot2 spots]
+            [ '2026-05-31', 'Monday, June 8th',  '6 spots left',  'Monday, June 15th', '9 spots left'  ],
+            [ '2026-06-10', 'Monday, June 15th', '3 spots left',  'Monday, June 22nd', '8 spots left'  ],
+            // Key: with only 4 dates this day would have a single slot. With 5 dates Jul 6 fills slot 2.
+            [ '2026-06-24', 'Monday, June 29th', '3 spots left',  'Monday, July 6th',  '8 spots left'  ],
+            [ '2026-06-28', 'Monday, June 29th', 'SOLD OUT',      'Monday, July 6th',  '6 spots left'  ],
+            [ '2026-07-01', 'Monday, July 6th',  '3 spots left',  null,                null            ],
+            [ '2026-07-05', 'Monday, July 6th',  'SOLD OUT',      'hp',                null            ],
+            [ '2026-07-08', 'hp',                null,            null,                null            ],
+        ];
+
+        foreach ( $cases as [ $today, $s1_date, $s1_spots, $s2_date, $s2_spots ] ) {
+            $slots = $this->r->compute_slots( $dates, $this->r->parse_iso_date( $today ) );
+            $this->assertSlot( $slots, 0, $s1_date, $s1_spots, "5-date: $today slot1" );
+            $this->assertSlot( $slots, 1, $s2_date, $s2_spots, "5-date: $today slot2" );
+        }
+    }
+
+    public function test_slot_logic_rolls_through_six_dates(): void {
+        $dates = [ '2026-06-08', '2026-06-15', '2026-06-22', '2026-06-29', '2026-07-06', '2026-07-13' ];
+
+        $cases = [
+            [ '2026-05-31', 'Monday, June 8th',  '6 spots left',  'Monday, June 15th', '9 spots left' ],
+            [ '2026-06-24', 'Monday, June 29th', '3 spots left',  'Monday, July 6th',  '8 spots left' ],
+            // Key: with 5 dates this day was a single-slot day. With 6 dates Jul 13 fills slot 2.
+            [ '2026-07-01', 'Monday, July 6th',  '3 spots left',  'Monday, July 13th', '8 spots left' ],
+            [ '2026-07-05', 'Monday, July 6th',  'SOLD OUT',      'Monday, July 13th', '6 spots left' ],
+            [ '2026-07-08', 'Monday, July 13th', '3 spots left',  null,                null           ],
+            [ '2026-07-12', 'Monday, July 13th', 'SOLD OUT',      'hp',                null           ],
+            [ '2026-07-15', 'hp',                null,            null,                null           ],
+        ];
+
+        foreach ( $cases as [ $today, $s1_date, $s1_spots, $s2_date, $s2_spots ] ) {
+            $slots = $this->r->compute_slots( $dates, $this->r->parse_iso_date( $today ) );
+            $this->assertSlot( $slots, 0, $s1_date, $s1_spots, "6-date: $today slot1" );
+            $this->assertSlot( $slots, 1, $s2_date, $s2_spots, "6-date: $today slot2" );
+        }
+    }
+
+    /**
+     * Assert the slot at $index matches expectations.
+     * $expected_date: a formatted date string, 'hp' (high-price), or null (slot must not exist).
+     * $expected_spots: a formatted spots string (e.g. '3 spots left', 'SOLD OUT') or null when N/A.
+     */
+    private function assertSlot( array $slots, int $index, ?string $expected_date, ?string $expected_spots, string $msg ): void {
+        if ( $expected_date === null ) {
+            $this->assertArrayNotHasKey( $index, $slots, "$msg: slot must not exist" );
+            return;
+        }
+        $this->assertArrayHasKey( $index, $slots, "$msg: slot missing" );
+        $slot = $slots[ $index ];
+        if ( $expected_date === 'hp' ) {
+            $this->assertSame( 'high_price', $slot['type'], "$msg: should be high_price" );
+            return;
+        }
+        $this->assertSame( 'date', $slot['type'], "$msg: should be a date slot" );
+        $this->assertSame( $expected_date,  $this->r->format_date( $slot['date'] ), "$msg: date text" );
+        $this->assertSame( $expected_spots, $this->spots_str( $slot ),              "$msg: spots text" );
     }
 }

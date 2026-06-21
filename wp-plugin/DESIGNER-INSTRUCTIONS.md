@@ -91,7 +91,7 @@ The number of dates you enter selects the behavior automatically:
 | 1 date | **single** | Hidden until 21 days before the date, then the normal spots countdown → SOLD OUT → high-price card. |
 | 2 dates | **double** | Current rolling logic with two dates. |
 | 3 dates | **triple** | Current rolling logic with three dates. |
-| 4+ dates | **fixed** | The classic cycle (unchanged). |
+| 4, 5, 6+ dates | **fixed** | The classic rolling cycle. Each extra date adds one more rollover before the high-price end (4 dates → 3 rollovers, 5 → 4, 6 → 5). Click *+ Add date* in the admin to add a 5th or 6th. |
 | `ongoing` in the **Schedule** field | **evergreen** | Generates the next two upcoming Mondays from today and rolls forward indefinitely. The date pickers are ignored. |
 
 In **evergreen** mode there is no final date, so `[fu_countdown]`,

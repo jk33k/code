@@ -29,8 +29,8 @@ edits code per cycle.
 
 ## Current status
 
-- **Version**: 2.1.1 (plugin), pushed on branch `claude/fitness-urgency-script-RtPun`.
-- **Tests**: 72 PHPUnit tests pass (`FU_Renderer` + `FU_Programs`).
+- **Version**: 2.1.2 (plugin), pushed on branch `claude/fitness-urgency-script-RtPun`.
+- **Tests**: 76 PHPUnit tests pass (`FU_Renderer` + `FU_Programs`).
 - **Deploy artifact**: `wp-plugin/dwc-spots-left.zip` (rebuilt on every
   release).
 - **Installed**: User has installed and confirmed v1.1.0 works on their
@@ -156,7 +156,9 @@ Ordinal suffix: `Monday, June 8th`, `June 29th`. Implemented in
 
 `FU_Renderer::resolve_mode($dates, $evergreen)` selects the mode:
 1 date → `single` (21-day lead gate via `compute_slots($dates,$today,21)`),
-2 → `double`, 3 → `triple`, 4+ → `fixed`, and the `evergreen` flag → `ongoing`.
+2 → `double`, 3 → `triple`, 4+ → `fixed` (5- and 6-date cycles use the same
+`fixed` branch — `compute_slots()` is N-agnostic and simply gives N−1
+rollovers), and the `evergreen` flag → `ongoing`.
 Ongoing ignores stored dates and uses `upcoming_mondays(5)` (Monday of the
 current ISO week + the next four) fed into the same `compute_slots`, so there
 are always two upcoming Mondays and never a high-price end. `[fu_countdown]`
@@ -204,7 +206,7 @@ derived in `FU_Programs::sanitize()` from the admin "Schedule" field (the word
      target Unix timestamp is in the DOM (computed by PHP).
 3. **Test suite** (`tests/RendererTest.php`): exercises `FU_Renderer` in
    isolation with `FU_TESTING` defined so `class-fu-renderer.php` doesn't
-   require WP. 60 tests total (`FU_Renderer` + `FU_Programs`).
+   require WP. 76 tests total (`FU_Renderer` + `FU_Programs`).
 
 `FU_Renderer` has zero WP dependencies — that's intentional. All WP-aware
 code (network options via `get_site_option`/`update_site_option`, timezone,
@@ -228,7 +230,7 @@ cd wp-plugin/fitness-urgency
 ./vendor/bin/phpunit tests/
 ```
 
-Should print `OK (60 tests, …)`. **Update tests whenever
+Should print `OK (76 tests, …)`. **Update tests whenever
 `FU_Renderer` or `FU_Programs` behavior changes.** The slot data provider in
 `RendererTest::slotProvider()` is the canonical day-by-day spec.
 
@@ -243,8 +245,16 @@ zip -r dwc-spots-left.zip fitness-urgency/ \
   --exclude "fitness-urgency/composer.json" \
   --exclude "fitness-urgency/composer.lock" \
   --exclude "fitness-urgency/phpunit.xml" \
-  --exclude "fitness-urgency/.phpunit.result.cache"
+  --exclude "fitness-urgency/.phpunit.result.cache" \
+  --exclude "*.DS_Store" \
+  --exclude "* 2.*" \
+  --exclude "* 2"
 ```
+
+> The last three excludes are defensive — `.DS_Store` is macOS metadata; the
+> `* 2.*` / `* 2` patterns catch Finder-duplicated files (e.g. `composer 2.json`,
+> `LICENSE 2`) that occasionally appear when the source folder is touched via
+> Finder or iCloud sync. Keep them so future rebuilds stay clean.
 
 The ZIP must:
 - Contain a top-level `fitness-urgency/` folder (plugin slug).
@@ -333,6 +343,16 @@ prioritized them; ask before starting any of these.
 
 ## Version history
 
+- **2.1.2** — Explicit 5- and 6-date cycle support. No logic change — `compute_slots()`
+  has always been N-agnostic and `resolve_mode()` already routed 4+ to `fixed` — so
+  the existing rolling cycle simply extends with one extra rollover per added date
+  (5 → 4 rollovers, 6 → 5). What's new: regression tests covering 5- and 6-date
+  cycles end-to-end (resolver + slot rolling through to the high-price end), admin
+  hint text and `DESIGNER-INSTRUCTIONS.md` mode table updated to mention 5/6
+  explicitly, and `SPOTS-CHANGE-TIMELINE.md` gets a 5/6-date section. Admin UI is
+  unchanged — designers click "+ Add date" to add a 5th or 6th. Fully backward
+  compatible. Tests: 74 → 76 (counted as case adds; the new five-/six-date tests
+  internally loop multiple assertions).
 - **2.1.1** — `[fu_show_phase]` and `[fu_show_if_slot]` now output an empty
   string when inactive instead of a hidden `<div style="display:none">`, so the
   wrappers reserve zero layout space (fixes designer complaint about leftover

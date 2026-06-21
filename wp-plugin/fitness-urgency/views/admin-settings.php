@@ -81,7 +81,8 @@
                 next two upcoming Mondays automatically and rolls forward forever (the date pickers
                 below are ignored). Otherwise leave this blank and enter dates below:
                 <strong>1</strong> date = single (starts 21 days out),
-                <strong>2&ndash;3</strong> = that many dates, <strong>4+</strong> = the standard cycle.
+                <strong>2&ndash;3</strong> = that many dates, <strong>4, 5, 6, or more</strong> = the standard
+                rolling cycle (use <em>+ Add date</em> for 5+).
               </p>
             </td>
           </tr>
